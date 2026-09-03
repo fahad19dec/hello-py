@@ -1,5 +1,7 @@
-altair
-numpy
-pandas
-pydeck
-streamlit
+# UI dependencies
+streamlit>=1.36
+python-dotenv>=1.0
+
+# The framework this UI drives. Pinning to a tag/commit is recommended once you
+# have a version that works for you.
+tradingagents @ git+https://github.com/TauricResearch/TradingAgents.git

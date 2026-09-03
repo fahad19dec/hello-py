@@ -1,0 +1,14 @@
+[theme]
+base = "dark"
+primaryColor = "#0f8f5f"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#171b26"
+textColor = "#e6e8ee"
+
+[server]
+# Long agent runs stream for minutes; keep the socket alive and the session warm.
+runOnSave = false
+maxUploadSize = 20
+
+[browser]
+gatherUsageStats = false
