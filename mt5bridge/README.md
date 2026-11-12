@@ -1,4 +1,10 @@
-# MT5 Bridge
+# Trade Bridge (prototype)
+
+> **Status: prototype.** This folder is the first proof of concept. The
+> production platform is being built in `../trading-platform/`, which reuses the
+> broker logic and simulators from here. Nothing in this folder has been run
+> against a real broker.
+
 
 A hosted TradingView-to-MetaTrader 5 bridge. A customer signs up, enters their
 MT5 login, and gets a private webhook URL. TradingView alerts sent to that URL
@@ -35,6 +41,29 @@ TradingView alert ──► web server (any Linux host)        Windows server(s)
 | `reverse` | `true` closes opposite positions on the symbol before opening |
 | `account` | Name of one account to trade; default is all enabled accounts |
 | `comment` | Order comment, up to 31 characters |
+
+## Zerodha (Kite Connect)
+
+Zerodha accounts need no Windows server: the web server calls the Kite Connect
+API directly. The customer creates a Kite Connect app, pastes its key and secret
+into the dashboard, and logs in to Zerodha once every trading day (tokens expire
+at 6:00 IST). An alert with `quantity` trades Zerodha accounts; one with `lots`
+trades MT5 accounts.
+
+```json
+{"action": "buy", "symbol": "RELIANCE", "exchange": "NSE", "quantity": 10, "product": "MIS"}
+```
+
+Rules checked against Zerodha's documentation in November 2026:
+
+- Market orders must carry `market_protection`; the bridge sends `-1` (automatic).
+- API orders are rejected unless they come from a static IP registered in the
+  customer's Kite developer profile. **Each IP can be linked to one developer
+  account and shared only with immediate family**, so one server cannot place
+  orders for unrelated customers. This prototype therefore only suits your own
+  or family accounts.
+- An accepted order is shown as `placed`, not filled: Zerodha's reply only
+  confirms the order was accepted.
 
 ## Safety rules built in
 

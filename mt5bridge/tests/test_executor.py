@@ -91,3 +91,20 @@ def test_health_reports_disabled_algo_trading():
     assert ex.health()["status"] == "connected"
     mt5.terminal_info = lambda: __import__("types").SimpleNamespace(connected=True, trade_allowed=False)
     assert ex.health()["status"] == "error"
+
+
+def test_reverse_says_so_when_the_close_worked_but_the_new_order_was_refused():
+    mt5, ex = make()
+    ex.execute(order(action="sell"))
+    mt5.refuse_when = lambda request: None if "position" in request else 10019
+    result = ex.execute(order(action="buy", reverse=True))
+    assert not result["ok"]
+    assert "closed 1 opposite position(s), then the new order failed" in result["message"]
+    assert mt5.positions == []
+
+
+def test_reverse_with_a_bad_size_closes_nothing():
+    mt5, ex = make()
+    ex.execute(order(action="sell"))
+    result = ex.execute(order(action="buy", lots=0.001, reverse=True))
+    assert not result["ok"] and len(mt5.sent) == 1 and len(mt5.positions) == 1

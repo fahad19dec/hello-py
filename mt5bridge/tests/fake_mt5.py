@@ -25,6 +25,7 @@ class FakeMT5:
         self.positions = []
         self.sent = []
         self.refuse_with = None
+        self.refuse_when = None  # optional: request -> retcode to refuse with, or None
         self.login_ok = True
         self._ticket = 1000
 
@@ -58,8 +59,9 @@ class FakeMT5:
 
     def order_send(self, request):
         self.sent.append(request)
-        if self.refuse_with:
-            return SimpleNamespace(retcode=self.refuse_with, comment="No money", order=0, price=0.0)
+        refusal = self.refuse_with or (self.refuse_when(request) if self.refuse_when else None)
+        if refusal:
+            return SimpleNamespace(retcode=refusal, comment="No money", order=0, price=0.0)
         self._ticket += 1
         if "position" in request:
             self.positions = [p for p in self.positions if p.ticket != request["position"]]

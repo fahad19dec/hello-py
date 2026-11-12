@@ -3,7 +3,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import MT5Account, Order, User, utcnow
+from app.models import Account, Order, User, utcnow
 from tests.fake_mt5 import FakeMT5
 from worker.executor import MT5Executor
 from worker.runner import Api, process_once, run
@@ -28,7 +28,7 @@ def add_account(client, label="Main", max_lots="1", suffix=""):
 
 def account_id(label="Main"):
     with SessionLocal() as db:
-        return db.scalar(select(MT5Account).where(MT5Account.label == label)).id
+        return db.scalar(select(Account).where(Account.label == label)).id
 
 
 def test_dashboard_requires_login(client):
@@ -50,7 +50,7 @@ def test_mt5_password_is_stored_encrypted_and_never_shown(client):
     signup(client)
     add_account(client)
     with SessionLocal() as db:
-        stored = db.scalar(select(MT5Account)).password_enc
+        stored = db.scalar(select(Account)).password_enc
     assert "mt5pass" not in stored
     assert "mt5pass" not in client.get("/").text
 
@@ -74,10 +74,10 @@ def test_webhook_rejections_are_explained(client):
     token = signup(client)
     assert client.post("/hook/nope", content="{}").status_code == 404
     r = client.post(f"/hook/{token}", content='{"action":"buy","symbol":"XAUUSD","lots":0.1}')
-    assert r.status_code == 400 and "no enabled MT5 account" in r.json()["error"]
+    assert r.status_code == 400 and "no enabled account" in r.json()["error"]
     add_account(client)
     assert "not valid JSON" in client.post(f"/hook/{token}", content="buy gold").json()["error"]
-    assert "lots is required" in client.post(
+    assert "lots (MT5) or quantity (Zerodha) is required" in client.post(
         f"/hook/{token}", content='{"action":"buy","symbol":"XAUUSD"}').json()["error"]
     assert "action" in client.post(
         f"/hook/{token}", content='{"action":"hold","symbol":"XAUUSD","lots":1}').json()["error"]
@@ -164,7 +164,7 @@ def test_runner_stops_for_paused_account_and_reports_login_failure(client, worke
     assert run(api, MT5Executor(mt5), aid, "C:/t/terminal64.exe") == 1
     assert mt5.init_kwargs["login"] == 12345678 and mt5.init_kwargs["portable"] is True
     with SessionLocal() as db:
-        account = db.get(MT5Account, aid)
+        account = db.get(Account, aid)
         assert account.status == "error" and "could not log in" in account.status_message
     client.post(f"/accounts/{aid}/toggle")
     assert run(api, MT5Executor(FakeMT5()), aid, "x") == 0

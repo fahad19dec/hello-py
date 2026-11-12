@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MT5 Bridge</title>
+<title>Trade Bridge</title>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --text:#1c2330; --muted:#667085; --line:#e3e6eb; --accent:#1f6feb; --ok:#18794e; --bad:#c62828; --warn:#9a6700; }
   * { box-sizing: border-box; }
@@ -31,7 +31,7 @@
   button.danger { color:var(--bad); }
   form.inline { display:inline; }
   .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; background:#eef0f3; color:var(--muted); }
-  .tag.connected, .tag.filled { background:#e3f5ea; color:var(--ok); }
+  .tag.connected, .tag.filled, .tag.placed { background:#e3f5ea; color:var(--ok); }
   .tag.error, .tag.failed, .tag.rejected { background:#fde8e8; color:var(--bad); }
   .tag.expired, .tag.claimed, .tag.queued { background:#fff4d6; color:var(--warn); }
   .narrow { max-width:380px; margin:48px auto; }
@@ -39,7 +39,7 @@
 </head>
 <body>
 <header>
-  <strong>MT5 Bridge</strong>
+  <strong>Trade Bridge</strong>
   {% if user %}
   <form class="inline" method="post" action="/logout"><span class="muted">{{ user.email }}</span> <button class="plain">Log out</button></form>
   {% endif %}

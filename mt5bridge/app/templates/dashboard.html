@@ -4,33 +4,44 @@
   <h2>Your webhook</h2>
   <p>Paste this URL into the Webhook URL field of a TradingView alert:</p>
   <p><code>{{ webhook_url }}</code></p>
-  <p>Put a message like this in the alert's Message box:</p>
+  <p>Put a message like one of these in the alert's Message box:</p>
+  <p class="muted">MetaTrader 5 (size in lots):</p>
   <pre>{"action": "buy", "symbol": "{% raw %}{{ticker}}{% endraw %}", "lots": 0.1, "sl": 2650.0, "tp": 2700.0}</pre>
+  <p class="muted">Zerodha (size in quantity):</p>
+  <pre>{"action": "buy", "symbol": "RELIANCE", "exchange": "NSE", "quantity": 10, "product": "MIS"}</pre>
   <p class="muted">
     <code>action</code> is <code>buy</code>, <code>sell</code> or <code>close</code> (closes every position on the symbol).
-    <code>sl</code> and <code>tp</code> are optional prices. Add <code>"reverse": true</code> to close opposite positions first,
-    or <code>"account": "name"</code> to trade one account only. Anyone with this URL can trade your accounts, so keep it private.
+    An alert with <code>lots</code> trades your MT5 accounts and one with <code>quantity</code> trades your Zerodha accounts.
+    Add <code>"reverse": true</code> to close opposite positions first, <code>"account": "name"</code> to trade one account only,
+    or <code>"broker": "mt5"</code> / <code>"kite"</code> to limit a close to one kind of account.
+    On MT5, <code>sl</code> and <code>tp</code> are optional prices. On Zerodha, <code>product</code> is <code>MIS</code>, <code>CNC</code> or <code>NRML</code>,
+    and <code>"order_type": "LIMIT"</code> with a <code>price</code> places a limit order.
+    Anyone with this URL can trade your accounts, so keep it private.
   </p>
   <form class="inline" method="post" action="/webhook/rotate"><button class="plain">Replace URL</button></form>
 </div>
 
 <div class="card">
-  <h2>MT5 accounts</h2>
+  <h2>Trading accounts</h2>
   {% if accounts %}
   <div class="scroll"><table>
-    <tr><th>Name</th><th>Login</th><th>Server</th><th>Status</th><th>Balance</th><th>Equity</th><th>Max lots</th><th></th></tr>
+    <tr><th>Name</th><th>Broker</th><th>Login</th><th>Status</th><th>Balance</th><th>Equity</th><th>Max size</th><th></th></tr>
     {% for a in accounts %}
     <tr>
-      <td>{{ a.label }}</td><td>{{ a.login }}</td><td>{{ a.server }}</td>
+      <td>{{ a.label }}</td>
+      {% if a.broker == "kite" %}<td>Zerodha</td><td>{{ a.api_key[:4] }}…</td>
+      {% else %}<td>MT5</td><td>{{ a.login }} @ {{ a.server }}</td>{% endif %}
       <td>
         {% if not a.enabled %}<span class="tag">paused</span>
+        {% elif a.broker == "kite" and not kite_ready[a.id] %}<span class="tag error">login needed</span>
         {% else %}<span class="tag {{ a.status }}">{{ a.status }}</span>{% endif %}
-        {% if a.enabled and a.status_message %}<div class="muted">{{ a.status_message }}</div>{% endif %}
+        {% if a.enabled and a.broker == "mt5" and a.status_message %}<div class="muted">{{ a.status_message }}</div>{% endif %}
       </td>
       <td>{{ "%.2f"|format(a.balance) if a.balance is not none else "–" }}</td>
       <td>{{ "%.2f"|format(a.equity) if a.equity is not none else "–" }}</td>
-      <td>{{ a.max_lots }}</td>
+      <td>{{ a.max_quantity ~ " qty" if a.broker == "kite" else a.max_lots ~ " lots" }}</td>
       <td>
+        {% if a.broker == "kite" %}<a href="/kite/{{ a.id }}/login"><button type="button" class="plain">Log in to Zerodha</button></a>{% endif %}
         <form class="inline" method="post" action="/accounts/{{ a.id }}/toggle"><button class="plain">{{ "Pause" if a.enabled else "Resume" }}</button></form>
         <form class="inline" method="post" action="/accounts/{{ a.id }}/delete" onsubmit="return confirm('Remove this account and its order history?')"><button class="plain danger">Remove</button></form>
       </td>
@@ -41,7 +52,7 @@
   <p class="muted">No accounts yet. Add one below.</p>
   {% endif %}
 
-  <h2 style="margin-top:20px">Add an account</h2>
+  <h2 style="margin-top:20px">Add an MT5 account</h2>
   <form method="post" action="/accounts">
     <div class="grid">
       <label>Name <input name="label" required maxlength="50" placeholder="Main"></label>
@@ -51,7 +62,26 @@
       <label>Max lots per order <input name="max_lots" type="number" step="0.01" min="0.01" value="1"></label>
       <label>Symbol suffix (optional) <input name="symbol_suffix" maxlength="16" placeholder="m"></label>
     </div>
-    <button>Add account</button>
+    <button>Add MT5 account</button>
+  </form>
+
+  <h2 style="margin-top:20px">Add a Zerodha account</h2>
+  <p class="muted">
+    Create a Kite Connect app at developers.kite.trade, set its Redirect URL to <code>{{ kite_redirect_url }}</code>,
+    then paste its key and secret here. Zerodha requires a fresh login every trading day before alerts can trade.
+    Zerodha also rejects API orders unless the sending IP is registered:
+    {% if kite_static_ip %}add <code>{{ kite_static_ip }}</code> under IP Whitelist in your Kite developer profile.
+    {% else %}add this server's IP address under IP Whitelist in your Kite developer profile.{% endif %}
+    <code>close</code> closes open positions for the symbol, not delivery holdings from earlier days.
+  </p>
+  <form method="post" action="/accounts/kite">
+    <div class="grid">
+      <label>Name <input name="label" required maxlength="50" placeholder="Zerodha"></label>
+      <label>API key <input name="api_key" required autocomplete="off"></label>
+      <label>API secret <input type="password" name="api_secret" required autocomplete="off"></label>
+      <label>Max quantity per order <input name="max_quantity" type="number" step="1" min="1" value="1"></label>
+    </div>
+    <button>Add Zerodha account</button>
   </form>
 </div>
 
@@ -71,11 +101,11 @@
   <h2>Recent orders</h2>
   {% if orders %}
   <div class="scroll"><table>
-    <tr><th>Time (UTC)</th><th>Account</th><th>Action</th><th>Symbol</th><th>Lots</th><th>Status</th><th>Price</th><th>Ticket</th><th>Detail</th></tr>
+    <tr><th>Time (UTC)</th><th>Account</th><th>Action</th><th>Symbol</th><th>Size</th><th>Status</th><th>Price</th><th>Ticket</th><th>Detail</th></tr>
     {% for o in orders %}
     <tr>
       <td>{{ o.created_at.strftime("%d %b %H:%M:%S") }}</td><td>{{ o.account.label }}</td><td>{{ o.action }}</td><td>{{ o.symbol }}</td>
-      <td>{{ o.lots if o.lots is not none else "–" }}</td>
+      <td>{{ o.lots if o.lots is not none else (o.quantity if o.quantity is not none else "–") }}</td>
       <td><span class="tag {{ o.status }}">{{ o.status }}</span></td>
       <td>{{ o.price if o.price is not none else "–" }}</td><td>{{ o.ticket or "–" }}</td><td class="wrap">{{ o.message }}</td>
     </tr>

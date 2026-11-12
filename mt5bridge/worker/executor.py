@@ -81,28 +81,36 @@ class MT5Executor:
             }
 
         is_buy = action == "buy"
+        # Check the size before touching anything, so a bad size closes nothing.
+        volume = self._normalise_volume(order["lots"], info)
         if order.get("reverse"):
             opposite = mt5.POSITION_TYPE_SELL if is_buy else mt5.POSITION_TYPE_BUY
-            self._close_positions(symbol, info, only_type=opposite)
+            closed = self._close_positions(symbol, info, only_type=opposite)
+        else:
+            closed = []
 
-        volume = self._normalise_volume(order["lots"], info)
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": volume,
-            "type": mt5.ORDER_TYPE_BUY if is_buy else mt5.ORDER_TYPE_SELL,
-            "price": self._price(symbol, is_buy),
-            "deviation": self.deviation,
-            "magic": self.magic,
-            "comment": order.get("comment") or "mt5bridge",
-            "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": self._filling(info),
-        }
-        if order.get("sl"):
-            request["sl"] = float(order["sl"])
-        if order.get("tp"):
-            request["tp"] = float(order["tp"])
-        result = self._send(request)
+        try:
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_BUY if is_buy else mt5.ORDER_TYPE_SELL,
+                "price": self._price(symbol, is_buy),
+                "deviation": self.deviation,
+                "magic": self.magic,
+                "comment": order.get("comment") or "mt5bridge",
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": self._filling(info),
+            }
+            if order.get("sl"):
+                request["sl"] = float(order["sl"])
+            if order.get("tp"):
+                request["tp"] = float(order["tp"])
+            result = self._send(request)
+        except MT5Error as exc:
+            if closed:
+                raise MT5Error(f"closed {len(closed)} opposite position(s), then the new order failed: {exc}")
+            raise
         return {
             "ok": True,
             "message": f"{action} {volume} {symbol}",

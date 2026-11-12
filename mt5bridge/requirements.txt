@@ -5,6 +5,6 @@ jinja2
 python-multipart
 itsdangerous
 cryptography
+httpx
 # tests
 pytest
-httpx

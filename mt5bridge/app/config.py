@@ -25,6 +25,9 @@ class Settings:
         # Per-user webhook rate limit.
         self.alerts_per_minute = int(os.environ.get("MT5BRIDGE_ALERTS_PER_MINUTE", "60"))
         self.https_only = os.environ.get("MT5BRIDGE_HTTPS_ONLY", "0") == "1"
+        # The fixed public IP this server sends Zerodha orders from. Zerodha rejects
+        # API orders unless the customer has registered that IP in their Kite profile.
+        self.kite_static_ip = os.environ.get("MT5BRIDGE_KITE_STATIC_IP", "")
 
 
 settings = Settings()
