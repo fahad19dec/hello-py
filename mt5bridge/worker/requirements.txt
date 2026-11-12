@@ -1,0 +1,3 @@
+# Windows only: the MetaTrader5 package talks to a local MT5 terminal.
+MetaTrader5
+requests

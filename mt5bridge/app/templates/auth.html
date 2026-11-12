@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow">
+  <h2>{{ "Create your account" if mode == "signup" else "Log in" }}</h2>
+  <form method="post" action="/{{ mode }}">
+    <label>Email <input type="email" name="email" required autofocus></label>
+    <label>Password <input type="password" name="password" required minlength="8"></label>
+    <button>{{ "Sign up" if mode == "signup" else "Log in" }}</button>
+  </form>
+  <p class="muted">
+    {% if mode == "signup" %}Already registered? <a href="/login">Log in</a>
+    {% else %}New here? <a href="/signup">Create an account</a>{% endif %}
+  </p>
+</div>
+{% endblock %}

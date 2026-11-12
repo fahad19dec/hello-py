@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Your webhook</h2>
+  <p>Paste this URL into the Webhook URL field of a TradingView alert:</p>
+  <p><code>{{ webhook_url }}</code></p>
+  <p>Put a message like this in the alert's Message box:</p>
+  <pre>{"action": "buy", "symbol": "{% raw %}{{ticker}}{% endraw %}", "lots": 0.1, "sl": 2650.0, "tp": 2700.0}</pre>
+  <p class="muted">
+    <code>action</code> is <code>buy</code>, <code>sell</code> or <code>close</code> (closes every position on the symbol).
+    <code>sl</code> and <code>tp</code> are optional prices. Add <code>"reverse": true</code> to close opposite positions first,
+    or <code>"account": "name"</code> to trade one account only. Anyone with this URL can trade your accounts, so keep it private.
+  </p>
+  <form class="inline" method="post" action="/webhook/rotate"><button class="plain">Replace URL</button></form>
+</div>
+
+<div class="card">
+  <h2>MT5 accounts</h2>
+  {% if accounts %}
+  <div class="scroll"><table>
+    <tr><th>Name</th><th>Login</th><th>Server</th><th>Status</th><th>Balance</th><th>Equity</th><th>Max lots</th><th></th></tr>
+    {% for a in accounts %}
+    <tr>
+      <td>{{ a.label }}</td><td>{{ a.login }}</td><td>{{ a.server }}</td>
+      <td>
+        {% if not a.enabled %}<span class="tag">paused</span>
+        {% else %}<span class="tag {{ a.status }}">{{ a.status }}</span>{% endif %}
+        {% if a.enabled and a.status_message %}<div class="muted">{{ a.status_message }}</div>{% endif %}
+      </td>
+      <td>{{ "%.2f"|format(a.balance) if a.balance is not none else "–" }}</td>
+      <td>{{ "%.2f"|format(a.equity) if a.equity is not none else "–" }}</td>
+      <td>{{ a.max_lots }}</td>
+      <td>
+        <form class="inline" method="post" action="/accounts/{{ a.id }}/toggle"><button class="plain">{{ "Pause" if a.enabled else "Resume" }}</button></form>
+        <form class="inline" method="post" action="/accounts/{{ a.id }}/delete" onsubmit="return confirm('Remove this account and its order history?')"><button class="plain danger">Remove</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}
+  <p class="muted">No accounts yet. Add one below.</p>
+  {% endif %}
+
+  <h2 style="margin-top:20px">Add an account</h2>
+  <form method="post" action="/accounts">
+    <div class="grid">
+      <label>Name <input name="label" required maxlength="50" placeholder="Main"></label>
+      <label>MT5 login <input name="login" required inputmode="numeric" placeholder="12345678"></label>
+      <label>Server <input name="server" required placeholder="Broker-Live01"></label>
+      <label>Trading password <input type="password" name="password" required autocomplete="off"></label>
+      <label>Max lots per order <input name="max_lots" type="number" step="0.01" min="0.01" value="1"></label>
+      <label>Symbol suffix (optional) <input name="symbol_suffix" maxlength="16" placeholder="m"></label>
+    </div>
+    <button>Add account</button>
+  </form>
+</div>
+
+{% if rejected %}
+<div class="card">
+  <h2>Alerts that were refused</h2>
+  <div class="scroll"><table>
+    <tr><th>Time (UTC)</th><th>Reason</th><th>Message received</th></tr>
+    {% for r in rejected %}
+    <tr><td>{{ r.received_at.strftime("%d %b %H:%M:%S") }}</td><td class="wrap">{{ r.error }}</td><td class="wrap"><code>{{ r.raw[:200] }}</code></td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Recent orders</h2>
+  {% if orders %}
+  <div class="scroll"><table>
+    <tr><th>Time (UTC)</th><th>Account</th><th>Action</th><th>Symbol</th><th>Lots</th><th>Status</th><th>Price</th><th>Ticket</th><th>Detail</th></tr>
+    {% for o in orders %}
+    <tr>
+      <td>{{ o.created_at.strftime("%d %b %H:%M:%S") }}</td><td>{{ o.account.label }}</td><td>{{ o.action }}</td><td>{{ o.symbol }}</td>
+      <td>{{ o.lots if o.lots is not none else "–" }}</td>
+      <td><span class="tag {{ o.status }}">{{ o.status }}</span></td>
+      <td>{{ o.price if o.price is not none else "–" }}</td><td>{{ o.ticket or "–" }}</td><td class="wrap">{{ o.message }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}
+  <p class="muted">Nothing yet. Orders appear here as soon as an alert arrives.</p>
+  {% endif %}
+</div>
+{% endblock %}
