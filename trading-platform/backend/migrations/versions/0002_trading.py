@@ -543,8 +543,6 @@ def _secure() -> None:
         op.execute(f"GRANT {privileges} ON {table} TO {app_role}")
 
     # The owner of a row can never be changed, so a row cannot be moved to another tenant.
-    for table in TABLES:
-        op.execute(f"REVOKE UPDATE (user_id) ON {table} FROM {app_role}")
     op.execute(
         """
         CREATE FUNCTION guard_owner_unchanged() RETURNS trigger LANGUAGE plpgsql AS $$
