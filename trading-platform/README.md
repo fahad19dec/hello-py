@@ -77,7 +77,7 @@ the API's terminal.
 
 ```bash
 cd backend && .venv/bin/python -m pytest      # 90 tests, against a real PostgreSQL
-cd frontend && npx eslint . && npx tsc --noEmit && npm run build
+cd frontend && npx eslint . && npm run typecheck && npm run build
 ```
 
 Details, the browser test and the test plan for later phases are in

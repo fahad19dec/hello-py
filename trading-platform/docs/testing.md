@@ -34,7 +34,7 @@ something.
 ```bash
 cd frontend
 npm ci
-npx eslint . && npx tsc --noEmit && npm run build
+npx eslint . && npm run typecheck && npm run build
 ```
 
 ### Browser test
