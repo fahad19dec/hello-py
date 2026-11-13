@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { PlannedSection } from "@/components/planned-section";
+import { Webhooks } from "./webhooks";
 
 export const metadata: Metadata = { title: "Webhook Connections" };
 
 export default function Page() {
-  return <PlannedSection href="/webhooks" />;
+  return (
+    <Suspense>
+      <Webhooks />
+    </Suspense>
+  );
 }

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { PlannedSection } from "@/components/planned-section";
+import { PaperTrading } from "./paper-trading";
 
 export const metadata: Metadata = { title: "Paper Trading" };
 
 export default function Page() {
-  return <PlannedSection href="/paper-trading" />;
+  return <PaperTrading />;
 }

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { PlannedSection } from "@/components/planned-section";
+import { ApiDocs } from "./api-docs";
 
 export const metadata: Metadata = { title: "API Documentation" };
 
 export default function Page() {
-  return <PlannedSection href="/api-docs" />;
+  return <ApiDocs />;
 }

@@ -12,24 +12,59 @@ import { api } from "@/lib/api";
 import { describeAction, describeDevice } from "@/lib/format";
 import { When } from "@/components/when";
 import { useSession } from "@/lib/session";
+import { money, pnlClass, type Num } from "@/lib/trading";
 import type { Activity, SessionInfo, SystemStatus } from "@/lib/types";
+import { PaperBadge } from "@/components/trading-ui";
 
-// Trading figures the overview will show once signals and orders exist. They
-// are listed so the layout is visible, and deliberately carry no numbers.
-const TRADING_METRICS = [
-  "Connected broker accounts",
-  "Active strategies",
-  "Active webhooks",
-  "Signals received today",
-  "Successful executions",
-  "Failed executions",
-  "Open positions",
-  "Realised P&L today",
-  "Unrealised P&L",
-  "Trading volume",
-  "Execution success rate",
-  "Signal-to-submission latency",
-];
+type Split = {
+  orders_today: number;
+  successful_executions: number;
+  failed_executions: number;
+  open_positions: number;
+  realized_pnl_today: Num;
+  unrealized_pnl: Num;
+  volume_today: Num;
+  success_rate: number | null;
+  avg_signal_to_submission_ms: number | null;
+};
+type OverviewData = {
+  accounts: { total: number; connected: number; paper: number; live: number; kill_switched: number };
+  active_strategies: number;
+  active_webhooks: number;
+  signals_today: { total: number; processed?: number; rejected?: number };
+  awaiting_approval: number;
+  paper: Split;
+  live: Split;
+};
+
+function TradingFigures({ data, kind }: { data: Split; kind: "paper" | "live" }) {
+  const cells: [string, string, string?][] = [
+    ["Orders today", String(data.orders_today)],
+    ["Filled or applied", String(data.successful_executions)],
+    ["Rejected or failed", String(data.failed_executions)],
+    ["Success rate", data.success_rate === null ? "—" : `${data.success_rate}%`],
+    ["Open positions", String(data.open_positions)],
+    ["Realised P&L today", money(data.realized_pnl_today), pnlClass(data.realized_pnl_today)],
+    ["Unrealised P&L", money(data.unrealized_pnl), pnlClass(data.unrealized_pnl)],
+    ["Volume today", money(data.volume_today)],
+    ["Signal to submission", data.avg_signal_to_submission_ms === null ? "—" : `${data.avg_signal_to_submission_ms} ms`],
+  ];
+  return (
+    <div>
+      <p className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <PaperBadge paper={kind === "paper"} /> {kind === "paper" ? "simulated fills" : "broker fills"}
+      </p>
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3">
+        {cells.map(([label, value, cls]) => (
+          <div key={label} className="bg-card px-3 py-2.5">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className={`mt-0.5 font-mono text-base tabular-nums ${cls ?? ""}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
 
 function StatusCard({
   icon,
@@ -64,11 +99,16 @@ export function Overview() {
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
   const [activity, setActivity] = useState<Activity[] | null>(null);
   const [system, setSystem] = useState<SystemStatus | null>(null);
+  const [trading, setTrading] = useState<OverviewData | null>(null);
 
   useEffect(() => {
     api<SessionInfo[]>("/auth/sessions").then(setSessions).catch(() => setSessions([]));
     api<Activity[]>("/users/me/activity", { query: { limit: 8 } }).then(setActivity).catch(() => setActivity([]));
     api<SystemStatus>("/system/status").then(setSystem).catch(() => setSystem(null));
+    const load = () => api<OverviewData>("/overview").then(setTrading).catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, 10000);
+    return () => window.clearInterval(timer);
   }, []);
 
   return (
@@ -119,23 +159,30 @@ export function Overview() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Trading activity</CardTitle>
+          <CardTitle>Trading today</CardTitle>
           <CardDescription>
-            There is no trading data yet: webhooks, strategies and broker connections are not built. These figures will be
-            calculated from stored signals, orders and fills, never from sample values.
+            {trading
+              ? `${trading.accounts.total} account(s), ${trading.accounts.connected} connected · ${trading.active_strategies} active strateg${trading.active_strategies === 1 ? "y" : "ies"} · ${trading.active_webhooks} webhook(s) · ${trading.signals_today.total} signal(s) today`
+              : "Loading…"}
+            {trading && trading.awaiting_approval ? (
+              <>
+                {" · "}
+                <Link href="/orders" className="text-warning underline-offset-4 hover:underline">
+                  {trading.awaiting_approval} order(s) waiting for your approval
+                </Link>
+              </>
+            ) : null}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3 lg:grid-cols-4">
-            {TRADING_METRICS.map((metric) => (
-              <div key={metric} className="bg-card px-3 py-3">
-                <dt className="text-xs text-muted-foreground">{metric}</dt>
-                <dd className="mt-1 font-mono text-base text-muted-foreground/60" aria-label="No data">
-                  —
-                </dd>
-              </div>
-            ))}
-          </dl>
+        <CardContent className="grid gap-5 lg:grid-cols-2">
+          {trading ? (
+            <>
+              <TradingFigures data={trading.live} kind="live" />
+              <TradingFigures data={trading.paper} kind="paper" />
+            </>
+          ) : (
+            <Skeleton className="h-40 w-full lg:col-span-2" />
+          )}
         </CardContent>
       </Card>
 
