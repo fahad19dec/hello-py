@@ -18,7 +18,7 @@ COPY migrations ./migrations
 COPY app ./app
 
 # Run as an unprivileged user with no shell and no home directory.
-RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 USER 10001
 
 EXPOSE 8000
