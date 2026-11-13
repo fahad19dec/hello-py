@@ -210,7 +210,8 @@ def _base_order(signal, payload, strategy, account, intent, side, position_side,
         symbol=symbol,
         broker_symbol=symbol,
         order_type=payload.order_type if intent == "open" else "MARKET",
-        reference_price=payload.price,
+        # For LIMIT and STOP_LIMIT alerts "price" is the limit, not the market price.
+        reference_price=payload.price if payload.order_type in ("MARKET", "STOP") else None,
         filled_quantity=Decimal(0),
         attempts=0,
     )
@@ -665,16 +666,28 @@ def _failure(db: Session, account: BrokerAccount, order: Order) -> None:
 # ============================================================ reconciliation
 
 
-def reconcile(db: Session, *, now: datetime | None = None) -> None:
+def recover(db: Session, *, now: datetime | None = None) -> None:
+    """Expire what is too old and take back orders from workers that stopped. No broker calls."""
     now = now or utcnow()
     with access(db, SYSTEM):
         _expire(db, now)
         _recover_leases(db, now)
         db.commit()
+
+
+def check_brokers(db: Session, *, now: datetime | None = None) -> None:
+    """Ask brokers about orders whose outcome is unknown or still working."""
+    now = now or utcnow()
+    with access(db, SYSTEM):
         _resolve_unknown(db, now)
         _poll_submitted(db, now)
         _expire_kite_logins(db, now)
         db.commit()
+
+
+def reconcile(db: Session, *, now: datetime | None = None) -> None:
+    recover(db, now=now)
+    check_brokers(db, now=now)
 
 
 def _expire(db: Session, now: datetime) -> None:
@@ -798,6 +811,7 @@ def run_once(db: Session, *, now: datetime | None = None) -> dict:
     """One pass of the worker loop. Returns counts, for logs and tests."""
     now = now or utcnow()
     planned = process_pending_signals(db, now=now)
+    recover(db, now=now)
     claimed = claim_due_orders(db, now=now)
     for order_id in claimed:
         try:
@@ -805,7 +819,7 @@ def run_once(db: Session, *, now: datetime | None = None) -> dict:
         except Exception:  # noqa: BLE001 - the lease expires and reconciliation takes over
             db.rollback()
             log.exception("execution of order %s failed unexpectedly", order_id)
-    reconcile(db, now=now)
+    check_brokers(db, now=now)
     return {"signals": planned, "orders": len(claimed)}
 
 

@@ -44,7 +44,9 @@ def test_an_identical_resend_without_a_signal_id_is_also_a_duplicate():
     assert alert(trader.browser, hook["url"], raw=body).status_code == 202
     assert alert(trader.browser, hook["url"], raw=body).json()["status"] == "duplicate"
     # A new alert differs at least in its timestamp, so it is a new signal.
-    assert alert(trader.browser, hook["url"], symbol="TCS", timestamp=iso(now() + timedelta(seconds=1))).status_code == 202
+    assert (
+        alert(trader.browser, hook["url"], symbol="TCS", timestamp=iso(now() + timedelta(seconds=1))).status_code == 202
+    )
     assert len(signal_rows()) == 2
 
 
@@ -86,16 +88,22 @@ def test_signed_webhooks_need_a_valid_hmac_signature():
     trader, account, strategy, _ = setup_paper()
     created = trader.webhook(strategy, require_signature=True)
     secret = created["signing_secret"]
-    body = json.dumps({"symbol": "INFY", "action": "BUY", "quantity": 1, "price": 1500, "signal_id": "h1",
-                       "timestamp": iso()}).encode()
+    body = json.dumps(
+        {"symbol": "INFY", "action": "BUY", "quantity": 1, "price": 1500, "signal_id": "h1", "timestamp": iso()}
+    ).encode()
     good = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
     assert alert(trader.browser, created["url"], raw=body).status_code == 401
-    assert alert(trader.browser, created["url"], raw=body, headers={"X-Signature": "sha256=" + "0" * 64}).status_code == 401
+    assert (
+        alert(trader.browser, created["url"], raw=body, headers={"X-Signature": "sha256=" + "0" * 64}).status_code
+        == 401
+    )
     tampered = body.replace(b'"quantity": 1', b'"quantity": 9')
     assert alert(trader.browser, created["url"], raw=tampered, headers={"X-Signature": good}).status_code == 401
     assert alert(trader.browser, created["url"], raw=body, headers={"X-Signature": good}).status_code == 202
     # The rejected attempts did not claim the signal id; the signed one did, and only once.
-    assert alert(trader.browser, created["url"], raw=body, headers={"X-Signature": good}).json()["status"] == "duplicate"
+    assert (
+        alert(trader.browser, created["url"], raw=body, headers={"X-Signature": good}).json()["status"] == "duplicate"
+    )
 
 
 def test_a_forged_alert_cannot_block_the_genuine_one_with_the_same_id():
@@ -134,16 +142,20 @@ def test_malformed_alerts_are_rejected_and_kept_in_the_signal_log():
         b"[1, 2]": "must be a JSON object",
         json.dumps({"symbol": "X", "action": "BUY", "quantity": 1}).encode(): "timestamp",
         json.dumps({"symbol": "X", "action": "HOLD", "timestamp": iso()}).encode(): "unknown action 'HOLD'",
-        json.dumps({"symbol": "X", "action": "BUY", "order_type": "LIMIT", "timestamp": iso()}).encode(): "need a price",
+        json.dumps(
+            {"symbol": "X", "action": "BUY", "order_type": "LIMIT", "timestamp": iso()}
+        ).encode(): "need a price",
         json.dumps({"symbol": "X", "action": "BUY", "quantity": -1, "timestamp": iso()}).encode(): "greater than zero",
         json.dumps({"symbol": "X", "action": "BUY", "quantity": "lots", "timestamp": iso()}).encode(): "number",
         json.dumps({"symbol": "X", "action": "BUY", "timestamp": "yesterday"}).encode(): "ISO 8601",
         json.dumps({"action": "BUY", "timestamp": iso()}).encode(): "needs a symbol",
         json.dumps({"symbol": "X", "action": "MODIFY_SL", "timestamp": iso()}).encode(): "needs stop_loss",
-        json.dumps({"symbol": "X", "action": "BUY", "price": 100, "stop_loss": 105, "timestamp": iso()}).encode():
-            "wrong side",
-        json.dumps({"symbol": "X", "action": "BUY", "strategy_id": "OTHER", "timestamp": iso()}).encode():
-            "does not match",
+        json.dumps(
+            {"symbol": "X", "action": "BUY", "price": 100, "stop_loss": 105, "timestamp": iso()}
+        ).encode(): "wrong side",
+        json.dumps(
+            {"symbol": "X", "action": "BUY", "strategy_id": "OTHER", "timestamp": iso()}
+        ).encode(): "does not match",
     }
     for body, reason in cases.items():
         response = alert(trader.browser, hook["url"], raw=body)
@@ -169,20 +181,26 @@ def test_action_aliases_are_configurable():
 def test_exchange_prefix_is_stripped_and_unix_timestamps_are_accepted():
     trader, account, strategy, hook = setup_paper()
     millis = int(now().timestamp() * 1000)
-    assert alert(trader.browser, hook["url"], symbol="NSE:reliance", timestamp=millis, signal_id="u1").status_code == 202
+    assert (
+        alert(trader.browser, hook["url"], symbol="NSE:reliance", timestamp=millis, signal_id="u1").status_code == 202
+    )
     assert signal_rows()[0].symbol == "RELIANCE"
 
 
 def test_the_test_endpoint_checks_without_storing_or_executing():
     trader, account, strategy, hook = setup_paper()
-    report = trader.ok(trader.browser.post(
-        f"/webhooks/{hook['webhook']['id']}/test",
-        json={"message": json.dumps({"symbol": "RELIANCE", "action": "BUY", "quantity": 5, "price": 2500,
-                                     "timestamp": iso()})},
-    ))
+    report = trader.ok(
+        trader.browser.post(
+            f"/webhooks/{hook['webhook']['id']}/test",
+            json={
+                "message": json.dumps(
+                    {"symbol": "RELIANCE", "action": "BUY", "quantity": 5, "price": 2500, "timestamp": iso()}
+                )
+            },
+        )
+    )
     assert report["valid"] is True and report["action"] == "BUY"
-    assert report["accounts"] == [{"account": "Paper", "broker": "paper", "result": "would be queued",
-                                   "quantity": "5"}]
+    assert report["accounts"] == [{"account": "Paper", "broker": "paper", "result": "would be queued", "quantity": "5"}]
     bad = trader.ok(trader.browser.post(f"/webhooks/{hook['webhook']['id']}/test", json={"message": "{}"}))
     assert bad["valid"] is False and bad["problems"]
     assert signal_rows() == [] and order_rows() == []
@@ -207,8 +225,9 @@ def test_a_database_outage_answers_with_an_error_and_records_nothing_half_done(m
     from app.main import app
 
     trader, account, strategy, hook = setup_paper()
-    broken = sessionmaker(bind=create_engine("postgresql+psycopg://tp_app:x@127.0.0.1:1/none",
-                                             connect_args={"connect_timeout": 1}))
+    broken = sessionmaker(
+        bind=create_engine("postgresql+psycopg://tp_app:x@127.0.0.1:1/none", connect_args={"connect_timeout": 1})
+    )
 
     def failing_db():
         session = broken()

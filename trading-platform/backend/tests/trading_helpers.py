@@ -44,15 +44,19 @@ class Trader:
 
     def account(self, broker="paper", label=None, **settings):
         label = label or f"{broker}-{len(self.ok(self.browser.get('/broker-accounts')))}"
-        return self.ok(self.browser.post("/broker-accounts", json={"broker": broker, "label": label,
-                                                                    "settings": settings}))
+        return self.ok(
+            self.browser.post("/broker-accounts", json={"broker": broker, "label": label, "settings": settings})
+        )
 
     def strategy(self, code="STRAT_1", **extra):
         return self.ok(self.browser.post("/strategies", json={"code": code, "name": code.title(), **extra}))
 
     def link(self, strategy, account, **extra):
-        return self.ok(self.browser.put(f"/strategies/{strategy['id']}/accounts/{account['id']}",
-                                        json={"sizing_mode": "signal", **extra}))
+        return self.ok(
+            self.browser.put(
+                f"/strategies/{strategy['id']}/accounts/{account['id']}", json={"sizing_mode": "signal", **extra}
+            )
+        )
 
     def webhook(self, strategy, **extra):
         return self.ok(self.browser.post("/webhooks", json={"strategy_id": strategy["id"], "name": "TV", **extra}))
@@ -113,7 +117,12 @@ def signal_rows():
 
 
 def order_rows(*where):
-    return sorted(rows(Order, *where), key=lambda o: (o.created_at, o.leg))
+    """Orders in the order their signals arrived (orders planned in one pass share a timestamp)."""
+    received = {s.id: s.received_at for s in rows(Signal)}
+    return sorted(
+        rows(Order, *where),
+        key=lambda o: (received.get(o.signal_id, o.created_at), o.created_at, o.leg, str(o.broker_account_id)),
+    )
 
 
 def fill_rows(*where):
@@ -214,8 +223,14 @@ class SimulatedBroker:
         sim = self.orders.get(client_order_id)
         if sim is None:
             return ExecutionStatus(found=False, message="no such order")
-        return ExecutionStatus(found=True, state=sim.status, broker_order_id=sim.order_id,
-                               filled_quantity=sim.filled, average_price=sim.price, message=sim.status)
+        return ExecutionStatus(
+            found=True,
+            state=sim.status,
+            broker_order_id=sim.order_id,
+            filled_quantity=sim.filled,
+            average_price=sim.price,
+            message=sim.status,
+        )
 
     def cancel_order(self, broker_order_id):
         for sim in self.orders.values():
@@ -235,8 +250,9 @@ def setup_kite(monkeypatch, email="kite@example.com", script=None, **link_extra)
     monkeypatch.setattr(get_settings(), "live_trading_enabled", True)
     trader = Trader(email)
     account = trader.account("kite", "Zerodha", api_key="kitekey1")
-    trader.mapping(account, alert_symbol="RELIANCE", broker_symbol="RELIANCE", exchange="NSE", product="MIS",
-                   tick_size="0.05")
+    trader.mapping(
+        account, alert_symbol="RELIANCE", broker_symbol="RELIANCE", exchange="NSE", product="MIS", tick_size="0.05"
+    )
     strategy = trader.strategy()
     trader.link(strategy, account, **link_extra)
     hook = trader.webhook(strategy)
@@ -254,10 +270,15 @@ def connect_kite(account_id) -> None:
         with access(db, SYSTEM):
             account = db.get(BrokerAccount, account_id)
             account.connection_status = "connected"
-            db.add(BrokerCredential(user_id=account.user_id, broker_account_id=account.id, kind="kite_access_token",
-                                    value_enc=get_cipher().encrypt("token", engine.credential_aad(account.id,
-                                                                                                  "kite_access_token")),
-                                    expires_at=now() + timedelta(hours=8)))
+            db.add(
+                BrokerCredential(
+                    user_id=account.user_id,
+                    broker_account_id=account.id,
+                    kind="kite_access_token",
+                    value_enc=get_cipher().encrypt("token", engine.credential_aad(account.id, "kite_access_token")),
+                    expires_at=now() + timedelta(hours=8),
+                )
+            )
             db.commit()
     finally:
         db.close()
