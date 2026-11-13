@@ -91,7 +91,7 @@ def order_out(order: Order, accounts: dict, strategies: dict) -> dict:
 
 @router.get("/signals")
 def list_signals(
-    status: Literal["received", "processed", "rejected"] | None = None,
+    status: Literal["received", "processed", "ignored", "rejected"] | None = None,
     strategy_id: uuid.UUID | None = None,
     limit: int = Query(50, ge=1, le=200),
     before: datetime | None = None,

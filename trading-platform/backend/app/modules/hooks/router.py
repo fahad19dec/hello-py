@@ -18,7 +18,7 @@ from datetime import timedelta
 import redis
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -62,24 +62,36 @@ def wake_workers() -> None:
 
 
 def _store(db: Session, webhook: Webhook, client_signal_id: str, values: dict) -> tuple[bool, Signal | None]:
-    """Insert the signal once. Returns (stored_now, row). A repeat only counts as a duplicate."""
+    """Store the signal. Returns (stored_now, row).
+
+    An accepted signal claims its id: a repeat only counts as a duplicate. A
+    rejected attempt is recorded but claims nothing, so a forged or broken
+    request can never block the genuine alert with the same id.
+    """
+    row = {"user_id": webhook.user_id, "webhook_id": webhook.id, "client_signal_id": client_signal_id, **values}
+    if values["status"] == "rejected":
+        signal_id = db.execute(insert(Signal).values(**row).returning(Signal.id)).scalar()
+        return True, db.get(Signal, signal_id)
     statement = (
         insert(Signal)
-        .values(user_id=webhook.user_id, webhook_id=webhook.id, client_signal_id=client_signal_id, **values)
-        .on_conflict_do_nothing(constraint="uq_signals_webhook_id_client_signal_id")
+        .values(**row)
+        .on_conflict_do_nothing(
+            index_elements=["webhook_id", "client_signal_id"], index_where=text("status <> 'rejected'")
+        )
         .returning(Signal.id)
     )
     signal_id = db.execute(statement).scalar()
     if signal_id is not None:
         return True, db.get(Signal, signal_id)
+    accepted = (
+        Signal.webhook_id == webhook.id,
+        Signal.client_signal_id == client_signal_id,
+        Signal.status != "rejected",
+    )
     db.execute(
-        update(Signal)
-        .where(Signal.webhook_id == webhook.id, Signal.client_signal_id == client_signal_id)
-        .values(duplicate_count=Signal.duplicate_count + 1, last_duplicate_at=utcnow())
+        update(Signal).where(*accepted).values(duplicate_count=Signal.duplicate_count + 1, last_duplicate_at=utcnow())
     )
-    return False, db.scalar(
-        select(Signal).where(Signal.webhook_id == webhook.id, Signal.client_signal_id == client_signal_id)
-    )
+    return False, db.scalar(select(Signal).where(*accepted))
 
 
 @router.post("/{token}")

@@ -332,7 +332,9 @@ def _create_tables() -> None:
         sa.Column("last_duplicate_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("source_ip", sa.String(length=45), nullable=True),
-        sa.CheckConstraint("status IN ('received', 'processed', 'rejected')", name=op.f("ck_signals_status_valid")),
+        sa.CheckConstraint(
+            "status IN ('received', 'processed', 'ignored', 'rejected')", name=op.f("ck_signals_status_valid")
+        ),
         sa.ForeignKeyConstraint(
             ["strategy_id"], ["strategies.id"], name=op.f("fk_signals_strategy_id_strategies"), ondelete="SET NULL"
         ),
@@ -341,9 +343,15 @@ def _create_tables() -> None:
             ["webhook_id"], ["webhooks.id"], name=op.f("fk_signals_webhook_id_webhooks"), ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_signals")),
-        sa.UniqueConstraint("webhook_id", "client_signal_id", name="uq_signals_webhook_id_client_signal_id"),
     )
     op.create_index("ix_signals_status", "signals", ["status"], unique=False)
+    op.create_index(
+        "uq_signals_webhook_id_client_signal_id",
+        "signals",
+        ["webhook_id", "client_signal_id"],
+        unique=True,
+        postgresql_where=sa.text("status <> 'rejected'"),
+    )
     op.create_index("ix_signals_user_id_received_at", "signals", ["user_id", "received_at"], unique=False)
     op.create_table(
         "orders",

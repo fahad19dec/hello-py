@@ -299,9 +299,17 @@ class Signal(Base):
 
     __tablename__ = "signals"
     __table_args__ = (
-        # The idempotency guarantee: one row per signal id per webhook.
-        UniqueConstraint("webhook_id", "client_signal_id", name="uq_signals_webhook_id_client_signal_id"),
-        CheckConstraint("status IN ('received', 'processed', 'rejected')", name="status_valid"),
+        # The idempotency guarantee: one accepted signal per signal id per webhook. Rejected
+        # attempts (bad signature, stale, malformed) do not claim the id, so they cannot
+        # block the genuine alert.
+        Index(
+            "uq_signals_webhook_id_client_signal_id",
+            "webhook_id",
+            "client_signal_id",
+            unique=True,
+            postgresql_where=text("status <> 'rejected'"),
+        ),
+        CheckConstraint("status IN ('received', 'processed', 'ignored', 'rejected')", name="status_valid"),
         Index("ix_signals_user_id_received_at", "user_id", "received_at"),
         Index("ix_signals_status", "status"),
     )

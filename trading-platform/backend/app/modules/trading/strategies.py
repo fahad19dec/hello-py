@@ -203,7 +203,7 @@ def create_strategy(
             changed_by=ctx.user.id,
         )
     )
-    record(db, ctx.user, request_meta(request), "strategy.created", "strategy", strategy.id, code=strategy.code)
+    record(db, ctx.user, request_meta(request), "strategy.created", "strategy", strategy.id, strategy=strategy.code)
     db.commit()
     return strategy_out(db, strategy)
 

@@ -145,7 +145,7 @@ def plan_signal(db: Session, signal: Signal, now: datetime) -> list[Order]:
     payload = SignalPayload.model_validate(signal.payload)
     strategy = db.get(Strategy, signal.strategy_id) if signal.strategy_id else None
     if strategy is None or strategy.status != "active":
-        _finish_signal(signal, now, "rejected", f"strategy is {strategy.status if strategy else 'missing'}")
+        _finish_signal(signal, now, "ignored", f"strategy is {strategy.status if strategy else 'missing'}")
         return []
     links = db.execute(
         select(StrategyAccount, BrokerAccount)
@@ -158,7 +158,7 @@ def plan_signal(db: Session, signal: Signal, now: datetime) -> list[Order]:
         .order_by(BrokerAccount.created_at)
     ).all()
     if not links:
-        _finish_signal(signal, now, "rejected", "no enabled accounts are linked to this strategy")
+        _finish_signal(signal, now, "ignored", "no enabled accounts are linked to this strategy")
         return []
 
     user = db.get(User, signal.user_id)

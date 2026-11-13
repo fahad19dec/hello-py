@@ -223,13 +223,9 @@ def check(
             return Rejection("signal_too_old", f"the alert is {age:.0f}s old; the limit is {max_age}s", {"age": age})
 
     if account.broker == "kite":
-        start, end = DEFAULT_KITE_SESSIONS.get(draft.exchange or "", DEFAULT_KITE_SESSION)
-        local = now.astimezone(IST)
-        if local.weekday() >= 5 or not (start <= local.time() <= end):
-            return Rejection(
-                "market_closed",
-                f"{draft.exchange or 'NSE'} is closed ({local:%a %H:%M} IST; open {start:%H:%M}-{end:%H:%M} Mon-Fri)",
-            )
+        closed = kite_market_closed(draft.exchange, now)
+        if closed:
+            return Rejection("market_closed", closed)
 
     if not draft.is_entry:
         return None
@@ -305,6 +301,15 @@ def check(
                 "min_available_margin",
                 f"available margin {account.margin_available:.2f} is below the minimum {min_margin:.2f}",
             )
+    return None
+
+
+def kite_market_closed(exchange: str | None, now: datetime) -> str | None:
+    """Why an Indian exchange is closed at `now`, or None if it is open (holidays are not known here)."""
+    start, end = DEFAULT_KITE_SESSIONS.get(exchange or "", DEFAULT_KITE_SESSION)
+    local = now.astimezone(IST)
+    if local.weekday() >= 5 or not (start <= local.time() <= end):
+        return f"{exchange or 'NSE'} is closed ({local:%a %H:%M} IST; open {start:%H:%M}-{end:%H:%M} Mon-Fri)"
     return None
 
 
