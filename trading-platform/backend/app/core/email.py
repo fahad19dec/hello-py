@@ -3,6 +3,7 @@
 import logging
 import smtplib
 import ssl
+import sys
 from dataclasses import dataclass
 from email.message import EmailMessage as MimeMessage
 from functools import lru_cache
@@ -25,14 +26,16 @@ class EmailSender(Protocol):
 
 
 class ConsoleEmailSender:
-    """Development only: prints the email, including its links, to the log.
+    """Development only: prints the email, including its links, to standard output.
 
-    Settings validation refuses this backend in production, because the links
-    carry sign-in secrets.
+    It writes straight to stdout rather than through the logger, because the
+    logger masks anything that looks like a token and a developer needs the
+    link. Settings validation refuses this backend in production.
     """
 
     def send(self, email: Email) -> None:
-        log.info("EMAIL to=%s subject=%r\n%s", email.to, email.subject, email.body)
+        sys.stdout.write(f"\n----- EMAIL to={email.to} subject={email.subject!r} -----\n{email.body}\n-----\n")
+        sys.stdout.flush()
 
 
 class MemoryEmailSender:
