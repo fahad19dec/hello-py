@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.core import tokens
@@ -28,6 +28,13 @@ class AuthContext:
         return tokens.csrf_token_for(self.raw_token, get_settings().secret_key)
 
 
+def _drop_cookie_header() -> dict[str, str]:
+    settings = get_settings()
+    response = Response()
+    response.delete_cookie(settings.cookie_name, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax")
+    return {"set-cookie": response.headers["set-cookie"]}
+
+
 def session_from_request(request: Request, db: Session = Depends(get_db)) -> AuthContext:
     """Any live session, including one still waiting for its second factor.
 
@@ -39,7 +46,8 @@ def session_from_request(request: Request, db: Session = Depends(get_db)) -> Aut
         raise NOT_AUTHENTICATED
     resolved = service.resolve_session(db, raw_token)
     if resolved is None:
-        raise NOT_AUTHENTICATED
+        # The cookie is dead (signed out, expired, revoked): tell the browser to drop it.
+        raise AppError(401, "not_authenticated", "Sign in to continue.", headers=_drop_cookie_header())
     session, user = resolved
     ctx = AuthContext(user=user, session=session, raw_token=raw_token)
     if request.method in UNSAFE_METHODS:

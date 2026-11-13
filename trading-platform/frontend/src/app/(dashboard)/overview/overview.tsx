@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
-import { describeAction, describeDevice, formatDateTime } from "@/lib/format";
+import { describeAction, describeDevice } from "@/lib/format";
+import { When } from "@/components/when";
 import { useSession } from "@/lib/session";
 import type { Activity, SessionInfo, SystemStatus } from "@/lib/types";
 
@@ -173,7 +174,7 @@ export function Overview() {
                       </span>
                     </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">
-                      {formatDateTime(entry.created_at, me.user.timezone)}
+                      <When iso={entry.created_at} timeZone={me.user.timezone} />
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {entry.actor === "staff" ? "—" : describeDevice(entry.user_agent)}

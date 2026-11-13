@@ -96,6 +96,17 @@ def test_logout_ends_the_session_on_the_server():
     assert replay.get("/auth/me").status_code == 401
 
 
+def test_a_dead_session_cookie_is_cleared_from_the_browser():
+    browser = signed_in(EMAIL)
+    owner_execute("UPDATE sessions SET revoked_at = now(), revoked_reason = 'test'")
+    response = browser.get("/auth/me")
+    assert response.status_code == 401
+    assert "tp_session=" in response.headers["set-cookie"] and "Max-Age=0" in response.headers["set-cookie"]
+    assert browser.session_cookie is None
+    # Without any cookie there is nothing to clear.
+    assert "set-cookie" not in Browser().get("/auth/me").headers
+
+
 def test_writes_require_the_session_csrf_token():
     browser = signed_in(EMAIL)
     csrf, browser.csrf = browser.csrf, None

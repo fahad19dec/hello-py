@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, errorMessage } from "@/lib/api";
-import { describeAction, describeDevice, formatDateTime } from "@/lib/format";
+import { describeAction, describeDevice } from "@/lib/format";
+import { When } from "@/components/when";
 import { useSession } from "@/lib/session";
 import type { Activity } from "@/lib/types";
 
@@ -66,7 +67,7 @@ export function ActivityTab() {
                 <TableRow key={entry.id}>
                   <TableCell>{describeAction(entry.action)}</TableCell>
                   <TableCell className="tabular-nums text-muted-foreground">
-                    {formatDateTime(entry.created_at, me.user.timezone)}
+                    <When iso={entry.created_at} timeZone={me.user.timezone} />
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {entry.actor === "you" ? "You" : entry.actor === "staff" ? "Support" : "—"}

@@ -1,0 +1,112 @@
+# Local development stack: PostgreSQL, Redis, a mail catcher, the API and the dashboard.
+#
+#   ./scripts/dev-env.sh        # once: writes .env with fresh random secrets
+#   docker compose up --build
+#
+# Dashboard  http://localhost:3000      Emails  http://localhost:8025
+# API docs   http://localhost:8000/api/docs
+#
+# This file is for development. Production differs in the ways listed in
+# docs/architecture.md (TLS, managed database, secret manager, no mail catcher).
+name: trading-platform
+
+x-backend-env: &backend-env
+  APP_NAME: ${APP_NAME:-TradeBridge}
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+psycopg://tp_app:${APP_DB_PASSWORD:?run scripts/dev-env.sh}@postgres:5432/tradeplatform
+  MIGRATIONS_DATABASE_URL: postgresql+psycopg://tp_owner:${OWNER_DB_PASSWORD:?run scripts/dev-env.sh}@postgres:5432/tradeplatform
+  REDIS_URL: redis://redis:6379/0
+  RATE_LIMIT_BACKEND: redis
+  SECRET_KEY: ${SECRET_KEY:?run scripts/dev-env.sh}
+  DATA_ENCRYPTION_KEYS: ${DATA_ENCRYPTION_KEYS:?run scripts/dev-env.sh}
+  DATA_ENCRYPTION_ACTIVE_KEY: ${DATA_ENCRYPTION_ACTIVE_KEY:-k1}
+  FRONTEND_ORIGIN: http://localhost:3000
+  COOKIE_SECURE: "false"            # plain http on localhost only
+  TRUSTED_PROXY_HOPS: "1"           # the dashboard container forwards API calls
+  EMAIL_BACKEND: smtp
+  EMAIL_FROM: no-reply@localhost
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  SMTP_STARTTLS: "false"
+  LIVE_TRADING_ENABLED: "false"     # live execution stays off; see docs/architecture.md
+  PAPER_TRADING_ENABLED: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?run scripts/dev-env.sh}
+      OWNER_DB_PASSWORD: ${OWNER_DB_PASSWORD:?run scripts/dev-env.sh}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?run scripts/dev-env.sh}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tradeplatform"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./backend
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_APP_NAME: ${APP_NAME:-TradeBridge}
+    environment:
+      BACKEND_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  pgdata:
+  redisdata:

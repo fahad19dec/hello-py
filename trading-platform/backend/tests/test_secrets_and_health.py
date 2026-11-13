@@ -145,3 +145,12 @@ def test_sign_in_still_works_and_is_still_throttled_during_a_redis_outage(monkey
     for _ in range(5):
         assert Browser().login(EMAIL, "wrong-password-000").status_code == 401
     assert Browser().login(EMAIL, "wrong-password-000").status_code == 429
+
+
+def test_development_mailer_prints_the_link_to_stdout_but_not_through_the_logger(capsys, caplog):
+    from app.core.email import ConsoleEmailSender, verification_email
+
+    caplog.set_level(logging.DEBUG)
+    ConsoleEmailSender().send(verification_email("dev@example.com", "the-link-token-value"))
+    assert "verify-email?token=the-link-token-value" in capsys.readouterr().out
+    assert "the-link-token-value" not in "\n".join(record.getMessage() for record in caplog.records)

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, errorMessage } from "@/lib/api";
 import { describeDevice, formatDateTime } from "@/lib/format";
+import { When } from "@/components/when";
 import { useSession } from "@/lib/session";
 import type { SessionInfo } from "@/lib/types";
 
@@ -94,7 +95,7 @@ export function SessionsTab() {
                     {session.ip ?? "—"}
                   </TableCell>
                   <TableCell className="tabular-nums text-muted-foreground">
-                    {formatDateTime(session.last_seen_at, me.user.timezone)}
+                    <When iso={session.last_seen_at} timeZone={me.user.timezone} />
                   </TableCell>
                   <TableCell className="hidden tabular-nums text-muted-foreground md:table-cell">
                     {formatDateTime(session.created_at, me.user.timezone)}

@@ -16,6 +16,23 @@ export function formatDateTime(iso: string | null | undefined, timeZone?: string
   }
 }
 
+/** "13 Nov, 10:24" for narrow screens. */
+export function formatDateTimeShort(iso: string | null | undefined, timeZone?: string): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone,
+    }).format(new Date(iso));
+  } catch {
+    return new Date(iso).toISOString().slice(5, 16);
+  }
+}
+
 export function formatRelative(iso: string | null | undefined, now: number): string {
   if (!iso) return "—";
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));

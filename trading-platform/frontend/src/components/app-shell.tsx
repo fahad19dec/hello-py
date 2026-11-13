@@ -50,7 +50,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
                     <item.icon className={`size-4 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} aria-hidden />
                     <span className="truncate">{item.label}</span>
                     {item.planned ? (
-                      <span className="ml-auto rounded border border-border px-1 text-[0.62rem] uppercase tracking-wide text-muted-foreground">
+                      <span className="ml-auto shrink-0 text-[0.62rem] uppercase tracking-wide text-muted-foreground/70">
                         Soon
                       </span>
                     ) : null}
