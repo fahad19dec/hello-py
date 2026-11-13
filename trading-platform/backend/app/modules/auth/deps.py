@@ -1,4 +1,5 @@
 """FastAPI dependencies that authenticate a request and set its database access context."""
+
 from dataclasses import dataclass
 
 from fastapi import Depends, Request
@@ -62,7 +63,9 @@ def _staff(ctx: AuthContext, db: Session, *, roles: set[str]) -> AuthContext:
         raise AppError(404, "not_found", "Not found.")
     if ctx.session.mfa_at is None:
         raise AppError(
-            403, "staff_mfa_required", "Admin access requires two-factor authentication. Turn it on, then sign in again."
+            403,
+            "staff_mfa_required",
+            "Admin access requires two-factor authentication. Turn it on, then sign in again.",
         )
     set_access_context(db, staff_context(ctx.user.id))
     return ctx

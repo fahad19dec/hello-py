@@ -1,4 +1,5 @@
 """Outgoing email: a small interface with console, in-memory and SMTP backends."""
+
 import logging
 import smtplib
 import ssl
@@ -75,6 +76,7 @@ def get_email_sender() -> EmailSender:
 
 
 # --- messages ---------------------------------------------------------------
+
 
 def _footer() -> str:
     return f"\n\nIf you did not expect this email you can ignore it.\n— {get_settings().app_name}"

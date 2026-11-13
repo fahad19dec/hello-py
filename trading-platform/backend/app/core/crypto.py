@@ -6,6 +6,7 @@ produced it, so keys can be rotated without downtime. The caller supplies
 "user:<id>:totp"); a ciphertext copied to another row or column then fails to
 decrypt, which stops one user's secret being swapped for another's.
 """
+
 import base64
 import os
 from functools import lru_cache
@@ -44,9 +45,7 @@ class FieldCipher:
         if prefix != _PREFIX or key_id not in self._keys or len(raw) <= _NONCE_BYTES:
             raise DecryptionError("unknown key or malformed ciphertext")
         try:
-            plain = AESGCM(self._keys[key_id]).decrypt(
-                raw[:_NONCE_BYTES], raw[_NONCE_BYTES:], associated_data.encode()
-            )
+            plain = AESGCM(self._keys[key_id]).decrypt(raw[:_NONCE_BYTES], raw[_NONCE_BYTES:], associated_data.encode())
         except InvalidTag as exc:
             raise DecryptionError("ciphertext failed authentication") from exc
         return plain.decode()

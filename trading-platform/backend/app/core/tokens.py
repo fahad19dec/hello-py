@@ -4,6 +4,7 @@ Only a SHA-256 hash of each token is stored. The tokens are long random
 values, so a fast hash is safe here (unlike for passwords) and lets the
 database look a token up by its hash.
 """
+
 import hashlib
 import hmac
 import secrets

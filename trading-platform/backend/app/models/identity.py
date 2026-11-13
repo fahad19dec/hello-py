@@ -1,4 +1,5 @@
 """Accounts, credentials, sessions and single-use tokens."""
+
 import uuid
 from datetime import datetime
 from enum import StrEnum
@@ -39,7 +40,7 @@ class UserStatus(StrEnum):
 
 class EmailTokenPurpose(StrEnum):
     VERIFY_EMAIL = "verify_email"
-    RESET_PASSWORD = "reset_password"
+    RESET_PASSWORD = "reset_password"  # noqa: S105 (a token kind, not a password)
 
 
 def _uuid_pk() -> Mapped[uuid.UUID]:

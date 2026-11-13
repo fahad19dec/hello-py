@@ -4,6 +4,7 @@ Events are added to the caller's transaction, so an action and its audit row
 commit together or not at all. Detail values must never contain secrets:
 record what happened and to what, not the credential involved.
 """
+
 import uuid
 from typing import Any
 

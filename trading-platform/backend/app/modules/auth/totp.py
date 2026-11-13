@@ -1,4 +1,5 @@
 """Time-based one-time passwords (authenticator apps)."""
+
 import hmac
 import time
 
@@ -7,6 +8,11 @@ import pyotp
 from app.core.config import get_settings
 
 STEP_SECONDS = 30
+
+
+def _clock() -> float:
+    """The current time. A separate function so tests can pin it."""
+    return time.time()
 
 
 def new_secret() -> str:
@@ -28,7 +34,7 @@ def match_step(secret: str, code: str, *, now: float | None = None) -> int | Non
     if len(code) != 6 or not code.isdigit():
         return None
     totp = pyotp.TOTP(secret)
-    current = int((time.time() if now is None else now) // STEP_SECONDS)
+    current = int((_clock() if now is None else now) // STEP_SECONDS)
     for step in (current, current - 1, current + 1):
         if hmac.compare_digest(totp.at(step * STEP_SECONDS), code):
             return step

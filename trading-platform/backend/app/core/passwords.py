@@ -1,4 +1,5 @@
 """Password hashing (Argon2id) and the password policy."""
+
 from functools import lru_cache
 
 from argon2 import PasswordHasher
@@ -26,7 +27,9 @@ _COMMON_PASSWORDS = frozenset(
 @lru_cache
 def _hasher() -> PasswordHasher:
     s = get_settings()
-    return PasswordHasher(time_cost=s.argon2_time_cost, memory_cost=s.argon2_memory_kib, parallelism=s.argon2_parallelism)
+    return PasswordHasher(
+        time_cost=s.argon2_time_cost, memory_cost=s.argon2_memory_kib, parallelism=s.argon2_parallelism
+    )
 
 
 def hash_password(password: str) -> str:

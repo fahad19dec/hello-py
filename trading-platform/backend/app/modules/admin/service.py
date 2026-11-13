@@ -4,6 +4,7 @@ These functions run in the staff access context, which can read profiles,
 session metadata and audit logs but never credential tables. The permission
 rules here are enforced a second time by database triggers.
 """
+
 import uuid
 
 from sqlalchemy import func, select, update
@@ -60,8 +61,14 @@ def view_user(db: Session, *, actor: User, user_id: uuid.UUID, meta: RequestMeta
     ).all()
     # Looking at a customer's account is itself recorded.
     audit.record(
-        db, "admin.user.viewed", user_id=target.id, actor_user_id=actor.id, actor_role=actor.role, meta=meta,
-        target_type="user", target_id=str(target.id),
+        db,
+        "admin.user.viewed",
+        user_id=target.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        meta=meta,
+        target_type="user",
+        target_id=str(target.id),
     )
     db.commit()
     return target, list(sessions)
@@ -85,8 +92,15 @@ def suspend_user(
     target.suspended_reason = reason
     ended = _end_sessions(db, target.id, "suspended")
     audit.record(
-        db, "admin.user.suspended", user_id=target.id, actor_user_id=actor.id, actor_role=actor.role, meta=meta,
-        target_type="user", target_id=str(target.id), detail={"reason": reason, "sessions_ended": ended},
+        db,
+        "admin.user.suspended",
+        user_id=target.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        meta=meta,
+        target_type="user",
+        target_id=str(target.id),
+        detail={"reason": reason, "sessions_ended": ended},
     )
     db.commit()
     send(mail.security_notice_email(target.email, "Your account has been suspended. Contact support for details."))
@@ -100,8 +114,14 @@ def unsuspend_user(db: Session, *, actor: User, user_id: uuid.UUID, meta: Reques
     target.status = UserStatus.ACTIVE.value
     target.suspended_reason = None
     audit.record(
-        db, "admin.user.unsuspended", user_id=target.id, actor_user_id=actor.id, actor_role=actor.role, meta=meta,
-        target_type="user", target_id=str(target.id),
+        db,
+        "admin.user.unsuspended",
+        user_id=target.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        meta=meta,
+        target_type="user",
+        target_id=str(target.id),
     )
     db.commit()
     send(mail.security_notice_email(target.email, "Your account has been reinstated. You can sign in again."))
@@ -118,8 +138,14 @@ def set_role(db: Session, *, actor: User, user_id: uuid.UUID, role: UserRole, me
     # A change of privilege ends existing sessions so the new role starts from a fresh sign-in.
     ended = _end_sessions(db, target.id, "role_changed")
     audit.record(
-        db, "admin.user.role_changed", user_id=target.id, actor_user_id=actor.id, actor_role=actor.role, meta=meta,
-        target_type="user", target_id=str(target.id),
+        db,
+        "admin.user.role_changed",
+        user_id=target.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        meta=meta,
+        target_type="user",
+        target_id=str(target.id),
         detail={"from": previous, "to": role.value, "sessions_ended": ended},
     )
     db.commit()
@@ -130,8 +156,15 @@ def revoke_user_sessions(db: Session, *, actor: User, user_id: uuid.UUID, meta: 
     target = _target(db, actor, user_id, changing=True)
     ended = _end_sessions(db, target.id, "revoked_by_staff")
     audit.record(
-        db, "admin.user.sessions_revoked", user_id=target.id, actor_user_id=actor.id, actor_role=actor.role,
-        meta=meta, target_type="user", target_id=str(target.id), detail={"sessions_ended": ended},
+        db,
+        "admin.user.sessions_revoked",
+        user_id=target.id,
+        actor_user_id=actor.id,
+        actor_role=actor.role,
+        meta=meta,
+        target_type="user",
+        target_id=str(target.id),
+        detail={"sessions_ended": ended},
     )
     db.commit()
     return ended

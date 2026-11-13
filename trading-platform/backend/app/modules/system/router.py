@@ -1,4 +1,5 @@
 """Health checks and the public system status (including the trading gates)."""
+
 import logging
 
 import redis

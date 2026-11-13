@@ -1,4 +1,5 @@
 """The signed-in user's own profile and security activity."""
+
 from datetime import datetime
 from typing import Annotated
 from zoneinfo import available_timezones
@@ -62,8 +63,13 @@ def update_profile(
             changed.append(field)
     if changed:
         audit.record(
-            db, "user.profile.updated", user_id=ctx.user.id, actor_user_id=ctx.user.id, actor_role=ctx.user.role,
-            meta=request_meta(request), detail={"fields": changed},
+            db,
+            "user.profile.updated",
+            user_id=ctx.user.id,
+            actor_user_id=ctx.user.id,
+            actor_role=ctx.user.role,
+            meta=request_meta(request),
+            detail={"fields": changed},
         )
         db.commit()
     return UserOut.model_validate(ctx.user)

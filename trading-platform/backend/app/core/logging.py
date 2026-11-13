@@ -1,4 +1,5 @@
 """Structured JSON logs with a request id, and a guard against logging secrets."""
+
 import contextvars
 import json
 import logging

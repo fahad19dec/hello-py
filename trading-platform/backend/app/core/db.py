@@ -11,6 +11,7 @@ Tenant isolation has two layers:
 A session starts with no context, which matches no rows at all, so code that
 forgets to establish a context fails closed instead of leaking data.
 """
+
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager

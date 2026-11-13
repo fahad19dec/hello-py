@@ -4,6 +4,7 @@ Sign-in and link-token flows run before we know who the caller is, so they use
 the SYSTEM access context. This module and `deps.py` are the only request-path
 code allowed to do that; a test enforces the allowlist.
 """
+
 import hashlib
 import uuid
 from collections.abc import Callable
@@ -194,7 +195,9 @@ def verify_email(db: Session, *, token: str, meta: RequestMeta) -> None:
         row.used_at = now
         if user.email_verified_at is None:
             user.email_verified_at = now
-            audit.record(db, "auth.email_verified", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta)
+            audit.record(
+                db, "auth.email_verified", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta
+            )
         db.commit()
 
 
@@ -267,7 +270,9 @@ def login(db: Session, *, email: str, password: str, meta: RequestMeta) -> Login
         db.add(session)
         if not mfa_required:
             user.last_login_at = now
-            audit.record(db, "auth.login.succeeded", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta)
+            audit.record(
+                db, "auth.login.succeeded", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta
+            )
         db.commit()
 
     limiter.reset(failure_key)
@@ -327,7 +332,12 @@ def complete_mfa(
         if exhausted:
             session.revoked_at, session.revoked_reason = now, "mfa_attempts_exceeded"
         audit.record(
-            db, "auth.mfa.challenge_failed", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta,
+            db,
+            "auth.mfa.challenge_failed",
+            user_id=user.id,
+            actor_user_id=user.id,
+            actor_role=user.role,
+            meta=meta,
             detail={"session_ended": exhausted},
         )
         db.commit()
@@ -343,7 +353,12 @@ def complete_mfa(
     session.mfa_at = now
     user.last_login_at = now
     audit.record(
-        db, "auth.login.succeeded", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta,
+        db,
+        "auth.login.succeeded",
+        user_id=user.id,
+        actor_user_id=user.id,
+        actor_role=user.role,
+        meta=meta,
         detail={"second_factor": method},
     )
     db.commit()
@@ -452,9 +467,7 @@ def disable_mfa(
     send(mail.security_notice_email(user.email, "Two-factor authentication was turned off for your account."))
 
 
-def regenerate_recovery_codes(
-    db: Session, *, user: User, password: str, code: str, meta: RequestMeta
-) -> list[str]:
+def regenerate_recovery_codes(db: Session, *, user: User, password: str, code: str, meta: RequestMeta) -> list[str]:
     credential = _confirm_password(db, user, password)
     if credential.totp_enabled_at is None:
         raise AppError(409, "mfa_not_enabled", "Two-factor authentication is not on.")
@@ -507,7 +520,12 @@ def change_password(
         .values(used_at=now)
     )
     audit.record(
-        db, "auth.password.changed", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta,
+        db,
+        "auth.password.changed",
+        user_id=user.id,
+        actor_user_id=user.id,
+        actor_role=user.role,
+        meta=meta,
         detail={"other_sessions_ended": revoked},
     )
     db.commit()
@@ -544,8 +562,13 @@ def reset_password(db: Session, *, token: str, new_password: str, meta: RequestM
             user.email_verified_at = now  # receiving the link proves the address
         revoked = _revoke_sessions(db, user.id, "password_reset")
         audit.record(
-            db, "auth.password.reset_completed", user_id=user.id, actor_user_id=user.id, actor_role=user.role,
-            meta=meta, detail={"sessions_ended": revoked},
+            db,
+            "auth.password.reset_completed",
+            user_id=user.id,
+            actor_user_id=user.id,
+            actor_role=user.role,
+            meta=meta,
+            detail={"sessions_ended": revoked},
         )
         db.commit()
         get_limiter().reset(_login_failure_key(user.email))
@@ -584,8 +607,14 @@ def revoke_session(db: Session, *, user: User, session_id: uuid.UUID, meta: Requ
         raise AppError(404, "not_found", "Session not found.")
     target.revoked_at, target.revoked_reason = utcnow(), "revoked_by_user"
     audit.record(
-        db, "auth.session.revoked", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta,
-        target_type="session", target_id=str(session_id),
+        db,
+        "auth.session.revoked",
+        user_id=user.id,
+        actor_user_id=user.id,
+        actor_role=user.role,
+        meta=meta,
+        target_type="session",
+        target_id=str(session_id),
     )
     db.commit()
 
@@ -593,7 +622,12 @@ def revoke_session(db: Session, *, user: User, session_id: uuid.UUID, meta: Requ
 def revoke_other_sessions(db: Session, *, user: User, session: AuthSession, meta: RequestMeta) -> int:
     revoked = _revoke_sessions(db, user.id, "revoked_by_user", except_session_id=session.id)
     audit.record(
-        db, "auth.sessions.revoked_others", user_id=user.id, actor_user_id=user.id, actor_role=user.role, meta=meta,
+        db,
+        "auth.sessions.revoked_others",
+        user_id=user.id,
+        actor_user_id=user.id,
+        actor_role=user.role,
+        meta=meta,
         detail={"sessions_ended": revoked},
     )
     db.commit()

@@ -3,6 +3,7 @@
 Nothing here has a secret default: the process refuses to start without the
 keys it needs, and refuses unsafe combinations in production.
 """
+
 import base64
 from functools import lru_cache
 from typing import Literal

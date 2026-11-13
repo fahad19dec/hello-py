@@ -1,4 +1,5 @@
 """Append-only audit trail."""
+
 import uuid
 from datetime import datetime
 

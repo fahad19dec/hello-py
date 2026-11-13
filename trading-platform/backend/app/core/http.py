@@ -1,4 +1,5 @@
 """Request plumbing: request ids, client address, the Origin check and security headers."""
+
 import ipaddress
 import uuid
 from dataclasses import dataclass

@@ -1,4 +1,5 @@
 """Admin API: user management and the audit trail. Staff only, second factor required."""
+
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
@@ -186,9 +187,16 @@ def audit_log(
     rows = service.list_audit(db, user_id=user_id, action_prefix=action, limit=limit, before_id=before_id)
     return [
         AuditOut(
-            id=r.id, created_at=r.created_at, user_id=r.user_id, actor_user_id=r.actor_user_id,
-            actor_role=r.actor_role, action=r.action, target_type=r.target_type, target_id=r.target_id,
-            ip=r.ip, detail=r.detail,
+            id=r.id,
+            created_at=r.created_at,
+            user_id=r.user_id,
+            actor_user_id=r.actor_user_id,
+            actor_role=r.actor_role,
+            action=r.action,
+            target_type=r.target_type,
+            target_id=r.target_id,
+            ip=r.ip,
+            detail=r.detail,
         )
         for r in rows
     ]

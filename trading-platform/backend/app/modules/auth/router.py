@@ -1,10 +1,11 @@
 """HTTP endpoints for accounts, sign-in, two-factor and session management."""
+
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.core import ratelimit, tokens
+from app.core import passwords, ratelimit, tokens
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.email import get_email_sender
@@ -32,9 +33,7 @@ def set_session_cookie(response: Response, token: str, settings: Settings) -> No
 
 
 def clear_session_cookie(response: Response, settings: Settings) -> None:
-    response.delete_cookie(
-        settings.cookie_name, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax"
-    )
+    response.delete_cookie(settings.cookie_name, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax")
 
 
 def _sender(background: BackgroundTasks) -> service.SendEmail:
@@ -50,7 +49,10 @@ def _sender(background: BackgroundTasks) -> service.SendEmail:
 @router.post("/register", status_code=202, response_model=schemas.MessageOut)
 def register(body: schemas.RegisterIn, request: Request, background: BackgroundTasks, db: Session = Depends(get_db)):
     meta = request_meta(request)
-    ratelimit.enforce(f"register:ip:{meta.ip}", limit=10, window_seconds=3600)
+    ratelimit.enforce(f"register:ip:{meta.ip}", limit=30, window_seconds=3600)
+    # The policy check reveals nothing about existing accounts, so it runs before
+    # the per-address limit: a mistyped password does not use up the allowance.
+    passwords.validate_new_password(body.password, email=body.email)
     ratelimit.enforce(f"register:email:{body.email}", limit=5, window_seconds=3600)
     service.register(db, email=body.email, password=body.password, meta=meta, send=_sender(background))
     return {"message": REGISTERED_MESSAGE}
@@ -165,9 +167,7 @@ def reset_password(
 ):
     meta = request_meta(request)
     ratelimit.enforce(f"reset:ip:{meta.ip}", limit=20, window_seconds=3600)
-    service.reset_password(
-        db, token=body.token, new_password=body.new_password, meta=meta, send=_sender(background)
-    )
+    service.reset_password(db, token=body.token, new_password=body.new_password, meta=meta, send=_sender(background))
     return {"message": "Password changed. Sign in with your new password."}
 
 
@@ -279,9 +279,7 @@ def sessions(ctx: AuthContext = Depends(current_user), db: Session = Depends(get
 
 
 @router.post("/sessions/revoke-others", response_model=schemas.CountOut)
-def revoke_other_sessions(
-    request: Request, ctx: AuthContext = Depends(current_user), db: Session = Depends(get_db)
-):
+def revoke_other_sessions(request: Request, ctx: AuthContext = Depends(current_user), db: Session = Depends(get_db)):
     count = service.revoke_other_sessions(db, user=ctx.user, session=ctx.session, meta=request_meta(request))
     return {"count": count}
 

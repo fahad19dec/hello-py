@@ -1,4 +1,5 @@
 """One error shape for the whole API: {"error": {"code": ..., "message": ...}}."""
+
 import logging
 
 from fastapi import FastAPI, Request
@@ -35,7 +36,9 @@ def install_error_handlers(app: FastAPI) -> None:
             {"field": ".".join(str(p) for p in err["loc"] if p != "body"), "message": err["msg"]}
             for err in exc.errors()
         ]
-        return JSONResponse(_body("invalid_request", "Some fields are missing or invalid.", fields=fields), status_code=422)
+        return JSONResponse(
+            _body("invalid_request", "Some fields are missing or invalid.", fields=fields), status_code=422
+        )
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException) -> JSONResponse:

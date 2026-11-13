@@ -1,4 +1,5 @@
 """Application factory for the API service."""
+
 import logging
 
 from fastapi import APIRouter, FastAPI
@@ -55,7 +56,9 @@ def create_app() -> FastAPI:
 
     log.info(
         "started: environment=%s live_trading_enabled=%s paper_trading_enabled=%s",
-        settings.environment, settings.live_trading_enabled, settings.paper_trading_enabled,
+        settings.environment,
+        settings.live_trading_enabled,
+        settings.paper_trading_enabled,
     )
     return app
 

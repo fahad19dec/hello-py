@@ -6,6 +6,7 @@
 There are no default accounts or passwords: the first super admin is created
 here, by someone with access to the server.
 """
+
 import argparse
 import getpass
 import os
@@ -59,7 +60,8 @@ def main(argv: list[str] | None = None) -> int:
     admin = commands.add_parser("create-admin", help="create a staff account")
     admin.add_argument("--email", required=True)
     admin.add_argument(
-        "--role", default=UserRole.SUPER_ADMIN.value,
+        "--role",
+        default=UserRole.SUPER_ADMIN.value,
         choices=[UserRole.SUPER_ADMIN.value, UserRole.SUPPORT_ADMIN.value],
     )
     commands.add_parser("generate-encryption-key", help="print a new key for DATA_ENCRYPTION_KEYS")
