@@ -74,7 +74,6 @@ def _create_tables() -> None:
         sa.Column("changed_by", sa.UUID(), nullable=True),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.CheckConstraint("id = 1", name=op.f("ck_platform_controls_single_row")),
-        sa.ForeignKeyConstraint(["changed_by"], ["users.id"], name=op.f("fk_platform_controls_changed_by_users")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_platform_controls")),
     )
     op.create_table(

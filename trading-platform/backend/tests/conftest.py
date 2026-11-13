@@ -71,9 +71,12 @@ def _schema(owner_engine):
 
 @pytest.fixture(autouse=True)
 def _clean(owner_engine, monkeypatch):
-    tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
+    tables = ", ".join(t.name for t in Base.metadata.sorted_tables if t.name != "platform_controls")
     with owner_engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+        # The single platform-control row created by the migration is reset, not removed.
+        conn.execute(text("SELECT set_config('app.access_mode', 'system', true)"))
+        conn.execute(text("UPDATE platform_controls SET trading_halted = false, reason = NULL, changed_by = NULL"))
     get_limiter().clear()
     get_email_sender().outbox.clear()
     helpers.pin_totp_clock(monkeypatch)

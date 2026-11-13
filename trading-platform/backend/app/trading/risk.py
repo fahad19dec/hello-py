@@ -69,6 +69,11 @@ class EffectiveLimits:
         return self.values.get(name)
 
 
+def _num(value: Decimal) -> str:
+    """12 rather than 1.2E+1."""
+    return format(value.normalize(), "f")
+
+
 def load_limits(db: Session, user_id, account_id, strategy_id) -> EffectiveLimits:
     keys = ["global", f"account:{account_id}"]
     if strategy_id:
@@ -240,12 +245,12 @@ def check(
     if account.broker in BRIDGE_BROKERS:
         cap = limits.get("max_order_lots")
         if cap is not None and quantity > cap:
-            return Rejection("max_order_lots", f"{quantity.normalize()} lots is above the limit of {cap.normalize()}")
+            return Rejection("max_order_lots", f"{_num(quantity)} lots is above the limit of {_num(cap)}")
     else:
         cap = limits.get("max_order_quantity")
         if cap is not None and quantity > cap:
             return Rejection(
-                "max_order_quantity", f"quantity {quantity.normalize()} is above the limit of {cap.normalize()}"
+                "max_order_quantity", f"quantity {_num(quantity)} is above the limit of {_num(cap)}"
             )
 
     open_positions = (

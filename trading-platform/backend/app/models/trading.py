@@ -539,5 +539,6 @@ class PlatformControl(Base):
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     trading_halted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     reason: Mapped[str | None] = mapped_column(String(300))
-    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    # Who last changed it (no foreign key: the row must outlive any one account; the audit log has the details).
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     updated_at: Mapped[datetime] = _updated_at()
