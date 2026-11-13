@@ -286,6 +286,7 @@ function check(name, ok, detail = '') {
   await shot('11-mobile-overview', mobile);
   await mobile.click('button[aria-label="Open menu"]');
   await mobile.waitForSelector('[role=dialog] >> text=Broker Accounts');
+  await mobile.waitForTimeout(900); // let the slide-in animation finish before the screenshot
   await mobile.screenshot({ path: `${OUT}/12-mobile-menu.png` });
 
   await browser.close();
