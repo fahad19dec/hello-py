@@ -95,12 +95,16 @@ def test_trading_sessions():
     current = now()
     closed_hour = (current + timedelta(hours=3)).strftime("%H:00")
     closed_end = (current + timedelta(hours=4)).strftime("%H:00")
-    trader.limits("global", trading_sessions=[{"days": [0, 1, 2, 3, 4, 5, 6], "start": closed_hour,
-                                               "end": closed_end, "timezone": "UTC"}])
+    trader.limits(
+        "global",
+        trading_sessions=[{"days": [0, 1, 2, 3, 4, 5, 6], "start": closed_hour, "end": closed_end, "timezone": "UTC"}],
+    )
     alert(trader.browser, hook["url"], signal_id="1", quantity=1)
     work()
     assert last_order().rule == "outside_trading_session"
-    bad = trader.browser.put("/risk/limits/global", json={"trading_sessions": [{"days": [9], "start": "9", "end": "x"}]})
+    bad = trader.browser.put(
+        "/risk/limits/global", json={"trading_sessions": [{"days": [9], "start": "9", "end": "x"}]}
+    )
     assert bad.status_code == 422
 
 
@@ -131,8 +135,11 @@ def test_slippage_limit_is_passed_to_execution():
 
 def test_account_kill_switch_and_pause():
     trader, account, strategy, hook = setup_paper()
-    trader.ok(trader.browser.post(f"/broker-accounts/{account['id']}/kill-switch",
-                                  json={"enabled": True, "reason": "testing"}))
+    trader.ok(
+        trader.browser.post(
+            f"/broker-accounts/{account['id']}/kill-switch", json={"enabled": True, "reason": "testing"}
+        )
+    )
     alert(trader.browser, hook["url"], signal_id="1", quantity=1)
     work()
     assert last_order().rule == "account_kill_switch" and "testing" in last_order().reason

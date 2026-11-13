@@ -266,6 +266,27 @@ def _plan_for_account(db, signal, payload, strategy, link, account, user, now) -
     order.exchange = instrument.exchange
     order.product = instrument.product
 
+    if (
+        intent == "open"
+        and account.broker == "kite"
+        and (
+            payload.stop_loss is not None
+            or payload.take_profit is not None
+            or strategy.default_stop_loss_pct
+            or strategy.default_take_profit_pct
+        )
+    ):
+        transition(
+            db,
+            order,
+            S.REJECTED,
+            "Zerodha orders cannot carry an attached stop loss or take profit; send a separate exit alert, "
+            "or remove the strategy's default stop for this account",
+            rule="not_supported",
+            now=now,
+        )
+        return [order]
+
     if intent in ("modify_sl", "modify_tp") and account.broker == "kite":
         transition(
             db,

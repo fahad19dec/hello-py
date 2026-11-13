@@ -249,9 +249,7 @@ def check(
     else:
         cap = limits.get("max_order_quantity")
         if cap is not None and quantity > cap:
-            return Rejection(
-                "max_order_quantity", f"quantity {_num(quantity)} is above the limit of {_num(cap)}"
-            )
+            return Rejection("max_order_quantity", f"quantity {_num(quantity)} is above the limit of {_num(cap)}")
 
     open_positions = (
         db.execute(select(Position.symbol).where(Position.broker_account_id == account.id, Position.quantity != 0))
