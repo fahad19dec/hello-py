@@ -75,6 +75,11 @@ def test_api_every_route_requires_a_session_unless_explicitly_public():
         ("POST", "/api/v1/auth/login"),
         ("POST", "/api/v1/auth/password/forgot"),
         ("POST", "/api/v1/auth/password/reset"),
+        # Machine endpoints with their own credential (webhook token, Zerodha checksum, device token):
+        ("POST", "/api/v1/hooks/{token}"),
+        ("POST", "/api/v1/hooks/kite/postback"),
+        ("POST", "/api/v1/bridge/poll"),
+        ("POST", "/api/v1/bridge/result"),
     }
     visitor = Browser()
     checked = 0
@@ -335,7 +340,16 @@ def test_application_role_is_unprivileged():
 
 def test_the_system_context_is_used_only_where_it_is_allowed():
     """Request-path code may enter the all-seeing context in exactly these files."""
-    allowed = {"app/core/db.py", "app/modules/auth/service.py", "app/cli.py"}
+    allowed = {
+        "app/core/db.py",
+        "app/modules/auth/service.py",
+        "app/cli.py",
+        # Machine endpoints authenticate with their own credential, then act for its owner.
+        "app/modules/hooks/router.py",
+        "app/modules/bridge/router.py",
+        # The execution engine (workers only).
+        "app/trading/engine.py",
+    }
     root = pathlib.Path(__file__).resolve().parents[1]
     offenders = [
         str(path.relative_to(root))

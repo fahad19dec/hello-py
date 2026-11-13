@@ -299,6 +299,7 @@ def _create_tables() -> None:
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("token_hint", sa.String(length=8), nullable=False),
         sa.Column("passphrase_hash", sa.String(length=64), nullable=True),
+        sa.Column("signing_secret_enc", sa.Text(), nullable=True),
         sa.Column("enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_received_at", sa.DateTime(timezone=True), nullable=True),
@@ -395,10 +396,10 @@ def _create_tables() -> None:
             "order_type IN ('MARKET', 'LIMIT', 'STOP', 'STOP_LIMIT')", name=op.f("ck_orders_order_type_valid")
         ),
         sa.CheckConstraint("side IS NULL OR side IN ('BUY', 'SELL')", name=op.f("ck_orders_side_valid")),
-        sa.CheckConstraint("source IN ('signal', 'manual')", name=op.f("ck_orders_source_valid")),
+        sa.CheckConstraint("source IN ('signal', 'manual', 'protective')", name=op.f("ck_orders_source_valid")),
         sa.CheckConstraint(
             "state IN ('VALIDATED', 'AWAITING_APPROVAL', 'QUEUED', 'EXECUTING', 'SUBMITTED', "
-            "'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED', 'FAILED', 'UNKNOWN', 'EXPIRED')",
+            "'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED', 'FAILED', 'UNKNOWN', 'EXPIRED', 'APPLIED')",
             name=op.f("ck_orders_state_valid"),
         ),
         sa.ForeignKeyConstraint(

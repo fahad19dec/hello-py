@@ -10,7 +10,14 @@ from app.core.http import RequestContextMiddleware
 from app.core.logging import configure_logging
 from app.modules.admin.router import router as admin_router
 from app.modules.auth.router import router as auth_router
+from app.modules.bridge.router import router as bridge_router
+from app.modules.hooks.router import router as hooks_router
 from app.modules.system.router import router as system_router
+from app.modules.trading.accounts import router as accounts_router
+from app.modules.trading.activity import router as activity_router
+from app.modules.trading.risk_api import router as risk_router
+from app.modules.trading.strategies import router as strategies_router
+from app.modules.trading.webhooks import router as webhooks_router
 from app.modules.users.router import router as users_router
 
 log = logging.getLogger("app")
@@ -52,6 +59,13 @@ def create_app() -> FastAPI:
     api.include_router(auth_router)
     api.include_router(users_router)
     api.include_router(admin_router)
+    api.include_router(accounts_router)
+    api.include_router(strategies_router)
+    api.include_router(webhooks_router)
+    api.include_router(activity_router)
+    api.include_router(risk_router)
+    api.include_router(hooks_router)
+    api.include_router(bridge_router)
     app.include_router(api)
 
     log.info(

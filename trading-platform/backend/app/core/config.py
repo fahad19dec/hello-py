@@ -73,6 +73,25 @@ class Settings(BaseSettings):
     live_trading_compliance_approval: str = ""
     paper_trading_enabled: bool = True
 
+    # --- execution ---------------------------------------------------------
+    # Signals older than this are rejected unless a risk limit sets another value.
+    default_max_signal_age_seconds: int = 60
+    # Tolerance for alerts whose timestamp is slightly in the future (clock skew).
+    signal_clock_skew_seconds: int = 30
+    # How long a semi-automatic order waits for approval before it expires.
+    approval_window_seconds: int = 300
+    # A worker that claims an order must finish within this time, or the order is reconciled.
+    execution_lease_seconds: int = 30
+    # A terminal bridge with no heartbeat for this long counts as disconnected.
+    bridge_offline_after_seconds: int = 120
+    # Consecutive execution failures that open an account's circuit breaker, unless a risk limit says otherwise.
+    default_max_consecutive_failures: int = 3
+    # Retries for orders that provably never reached the broker.
+    max_not_sent_retries: int = 3
+    worker_poll_seconds: float = 0.5
+    kite_api_url: str = "https://api.kite.trade"
+    kite_login_url: str = "https://kite.zerodha.com/connect/login"
+
     @property
     def allowed_origins(self) -> set[str]:
         extra = {o.strip().rstrip("/") for o in self.extra_allowed_origins.split(",") if o.strip()}

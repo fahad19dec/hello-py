@@ -77,6 +77,7 @@ class OrderState(StrEnum):
     FAILED = "FAILED"
     UNKNOWN = "UNKNOWN"
     EXPIRED = "EXPIRED"
+    APPLIED = "APPLIED"  # a modify or cancel instruction that took effect
 
 
 TERMINAL_STATES = {
@@ -85,6 +86,7 @@ TERMINAL_STATES = {
     OrderState.REJECTED.value,
     OrderState.FAILED.value,
     OrderState.EXPIRED.value,
+    OrderState.APPLIED.value,
 }
 # Orders whose outcome at the broker is not settled yet.
 OPEN_STATES = {
@@ -284,6 +286,8 @@ class Webhook(Base):
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     token_hint: Mapped[str] = mapped_column(String(8), nullable=False)
     passphrase_hash: Mapped[str | None] = mapped_column(String(64))
+    # Optional HMAC key for senders that can sign requests (TradingView cannot).
+    signing_secret_enc: Mapped[str | None] = mapped_column(Text)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -336,7 +340,7 @@ class Order(Base):
         ),
         CheckConstraint("side IS NULL OR side IN ('BUY', 'SELL')", name="side_valid"),
         CheckConstraint("order_type IN ('MARKET', 'LIMIT', 'STOP', 'STOP_LIMIT')", name="order_type_valid"),
-        CheckConstraint("source IN ('signal', 'manual')", name="source_valid"),
+        CheckConstraint("source IN ('signal', 'manual', 'protective')", name="source_valid"),
         Index("ix_orders_user_id_created_at", "user_id", "created_at"),
         Index("ix_orders_state_next_attempt_at", "state", "next_attempt_at"),
         Index("ix_orders_broker_account_id_state", "broker_account_id", "state"),

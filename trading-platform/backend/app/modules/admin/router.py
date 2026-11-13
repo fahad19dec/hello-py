@@ -8,10 +8,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core import audit
 from app.core.db import get_db
 from app.core.email import get_email_sender
 from app.core.http import request_meta
 from app.models.identity import User, UserRole
+from app.models.trading import PlatformControl
 from app.modules.auth.deps import AuthContext, current_staff, current_super_admin
 
 from . import service
@@ -200,3 +202,39 @@ def audit_log(
         )
         for r in rows
     ]
+
+
+# ------------------------------------------------------------- trading halt
+
+
+class HaltIn(BaseModel):
+    halted: bool
+    reason: Annotated[str, Field(max_length=300)] = ""
+
+
+@router.get("/trading-halt")
+def get_trading_halt(ctx: AuthContext = Depends(current_staff), db: Session = Depends(get_db)):
+    control = db.get(PlatformControl, 1)
+    return {"halted": control.trading_halted, "reason": control.reason, "updated_at": control.updated_at}
+
+
+@router.put("/trading-halt")
+def set_trading_halt(
+    body: HaltIn, request: Request, ctx: AuthContext = Depends(current_super_admin), db: Session = Depends(get_db)
+):
+    """Emergency stop for automated trading on the whole platform. Manual closes stay possible."""
+    control = db.get(PlatformControl, 1)
+    control.trading_halted = body.halted
+    control.reason = (body.reason.strip() or None) if body.halted else None
+    control.changed_by = ctx.user.id
+    audit.record(
+        db,
+        "admin.trading_halt",
+        user_id=None,
+        actor_user_id=ctx.user.id,
+        actor_role=ctx.user.role,
+        meta=request_meta(request),
+        detail={"halted": body.halted, "reason": body.reason},
+    )
+    db.commit()
+    return {"halted": control.trading_halted, "reason": control.reason, "updated_at": control.updated_at}
