@@ -16,7 +16,8 @@ from tests.trading_helpers import Trader, alert, now, order_rows, position_rows,
 
 def bridge(trader: Trader, token: str, path: str, **form):
     response = trader.browser.http.post(
-        f"/api/v1/bridge/{path}", content=urlencode(form),
+        f"/api/v1/bridge/{path}",
+        content=urlencode(form),
         headers={"X-Device-Token": token, "Content-Type": "application/x-www-form-urlencoded"},
     )
     lines = dict(line.split("=", 1) for line in response.text.strip().splitlines() if "=" in line)
@@ -36,8 +37,18 @@ def mt5(monkeypatch):
 
 
 def heartbeat(trader, token, **extra):
-    return bridge(trader, token, "poll", login="5001", server="Broker-Demo", currency="USD", balance="10000",
-                  equity="10050", margin_free="9000", **extra)
+    return bridge(
+        trader,
+        token,
+        "poll",
+        login="5001",
+        server="Broker-Demo",
+        currency="USD",
+        balance="10000",
+        equity="10050",
+        margin_free="9000",
+        **extra,
+    )
 
 
 def test_pairing_shows_the_token_once_and_the_terminal_must_be_online(mt5):
@@ -66,15 +77,28 @@ def test_an_order_goes_to_the_terminal_once_and_its_fill_is_recorded(mt5):
     assert (instruction["side"], instruction["volume"], instruction["sl"]) == ("BUY", "0.1", "2640")
     assert heartbeat(trader, token)[1] == {"type": "idle"}  # handed out once
     assert order_rows()[0].state == "EXECUTING"
-    status, ack = bridge(trader, token, "result", id=instruction["id"], status="filled", ticket="9001", deal="777",
-                         price="2650.35", volume="0.10")
+    status, ack = bridge(
+        trader,
+        token,
+        "result",
+        id=instruction["id"],
+        status="filled",
+        ticket="9001",
+        deal="777",
+        price="2650.35",
+        volume="0.10",
+    )
     assert ack == {"status": "ok"}
     order = order_rows()[0]
     assert order.state == "FILLED" and order.broker_order_id == "9001" and order.average_price == Decimal("2650.35")
     assert position_rows()[0].quantity == Decimal("0.1") and position_rows()[0].stop_loss == 2640
     # A repeated report changes nothing.
-    assert bridge(trader, token, "result", id=instruction["id"], status="filled", deal="777", price="2650.35",
-                  volume="0.10")[1]["status"] == "ok"
+    assert (
+        bridge(
+            trader, token, "result", id=instruction["id"], status="filled", deal="777", price="2650.35", volume="0.10"
+        )[1]["status"]
+        == "ok"
+    )
     assert order_rows()[0].filled_quantity == Decimal("0.1")
 
 
@@ -145,8 +169,13 @@ def test_one_user_cannot_see_or_touch_another_users_trading_data():
     order = order_rows()[0]
     bob = Trader("bob@example.com")
     bob_strategy = bob.strategy("BOB")
-    for path in (f"/broker-accounts/{account['id']}", f"/strategies/{strategy['id']}", f"/orders/{order.id}",
-                 f"/signals/{order.signal_id}", f"/broker-accounts/{account['id']}/instruments"):
+    for path in (
+        f"/broker-accounts/{account['id']}",
+        f"/strategies/{strategy['id']}",
+        f"/orders/{order.id}",
+        f"/signals/{order.signal_id}",
+        f"/broker-accounts/{account['id']}/instruments",
+    ):
         assert bob.browser.get(path).status_code == 404, path
     for method, path, body in (
         ("POST", f"/broker-accounts/{account['id']}/kill-switch", {"enabled": True}),
@@ -180,18 +209,24 @@ def test_the_database_refuses_cross_tenant_trading_rows():
         db.rollback()
         # Bob cannot link his strategy to Alice's account, even with raw SQL.
         with pytest.raises(DBAPIError):
-            db.execute(text("INSERT INTO strategy_accounts (user_id, strategy_id, broker_account_id) "
-                            "VALUES (:u, :s, :a)"), {"u": bob_id, "s": bob_strategy["id"], "a": account["id"]})
+            db.execute(
+                text("INSERT INTO strategy_accounts (user_id, strategy_id, broker_account_id) VALUES (:u, :s, :a)"),
+                {"u": bob_id, "s": bob_strategy["id"], "a": account["id"]},
+            )
         db.rollback()
         # Nor write fills or signals at all: only the trusted system code does that.
         with pytest.raises(DBAPIError, match="row-level security|same user"):
-            db.execute(text("INSERT INTO positions (user_id, broker_account_id, symbol, is_paper) "
-                            "VALUES (:u, :a, 'X', true)"), {"u": bob_id, "a": account["id"]})
+            db.execute(
+                text("INSERT INTO positions (user_id, broker_account_id, symbol, is_paper) VALUES (:u, :a, 'X', true)"),
+                {"u": bob_id, "a": account["id"]},
+            )
         db.rollback()
         set_access_context(db, tenant_context(alice_id))
         with pytest.raises(DBAPIError, match="same user"):
-            db.execute(text("INSERT INTO strategy_accounts (user_id, strategy_id, broker_account_id) "
-                            "VALUES (:u, :s, :a)"), {"u": alice_id, "s": bob_strategy["id"], "a": account["id"]})
+            db.execute(
+                text("INSERT INTO strategy_accounts (user_id, strategy_id, broker_account_id) VALUES (:u, :s, :a)"),
+                {"u": alice_id, "s": bob_strategy["id"], "a": account["id"]},
+            )
         db.rollback()
         with pytest.raises(DBAPIError, match="owner of a row cannot be changed"):
             db.execute(text("UPDATE orders SET user_id = :b"), {"b": bob_id})
@@ -209,8 +244,12 @@ def test_staff_can_see_trading_status_but_never_broker_credentials():
 
     alice, account, strategy, hook = setup_paper("alice@example.com")
     zerodha = alice.account("kite", "Zerodha", api_key="abcd1234")
-    alice.ok(alice.browser.put(f"/broker-accounts/{zerodha['id']}/kite/credentials",
-                               json={"api_key": "abcd1234", "api_secret": "very-secret"}))
+    alice.ok(
+        alice.browser.put(
+            f"/broker-accounts/{zerodha['id']}/kite/credentials",
+            json={"api_key": "abcd1234", "api_secret": "very-secret"},
+        )
+    )
     staff_member("support@example.com", "support_admin")
     db = new_session()
     try:

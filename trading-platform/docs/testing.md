@@ -64,9 +64,9 @@ role saw no rows without a tenant context.
 PostgreSQL and Redis containers, lints, builds the dashboard, and audits both
 dependency sets on every push that touches `trading-platform/`.
 
-## What is tested today (Phase 1)
+## What is tested today
 
-90 backend tests and 28 browser checks.
+167 backend tests and 49 browser checks (28 for accounts and security, 21 for trading).
 
 | Area | Examples |
 |---|---|
@@ -101,32 +101,35 @@ locking. Adapter tests against mocked HTTP. Browser tests for the critical user
 paths. The MT4 and MT5 Expert Advisors are exercised by hand against a demo
 terminal, with a written checklist, because they cannot run here.
 
-## Required scenarios and where they land
+## Required scenarios
 
-| Scenario | Phase | Status |
-|---|---|---|
-| Unauthorized access | 1 | Tested |
-| Cross-tenant data access | 1 | Tested |
-| Redis outage | 1, 2 | Tested for rate limiting; queue behaviour in Phase 2 |
-| Duplicate webhook delivery | 2 | |
-| Invalid webhook signatures and credentials | 2 | |
-| Expired signals | 2 | |
-| Database outage | 2 | Readiness tested now; ingest behaviour in Phase 2 |
-| Application restart during execution | 2, 3 | |
-| Partial fills | 3 | |
-| Rejected orders | 3 | |
-| Broker timeout | 3 | |
-| Broker disconnection | 3 | |
-| Ambiguous broker responses | 3 | |
-| Duplicate worker execution | 3 | |
-| Incorrect symbols | 4 | |
-| Invalid lot sizes | 4 | |
-| Invalid price precision | 4 | |
-| Market closed | 4 | |
-| Incorrect quantities | 5 | |
-| Insufficient margin | 5 | |
-| Multiple accounts receiving the same signal | 5 | |
-| Kill switch activation | 5 | |
-| Daily loss limit | 5 | |
+| Scenario | Where it is tested |
+|---|---|
+| Duplicate webhook delivery | `test_webhook_intake.py`: same id twice and three times; identical body without an id |
+| Invalid webhook signatures and credentials | wrong or missing passphrase; missing, wrong and tampered HMAC; unknown, rotated and revoked URLs |
+| Expired signals | too old, from the future, per-strategy and per-account age limits; queued orders past their deadline expire |
+| Incorrect quantities | not a multiple of the lot or step; below minimum; above limits; sizing that needs a missing price or stop |
+| Incorrect symbols | Zerodha alert with no instrument mapping; terminal reports the symbol does not exist |
+| Invalid lot sizes | lot-size test (NIFTY lot 75); MetaTrader EA checks volume min, max and step before sending |
+| Invalid price precision | tick-size test; default stops placed on a valid tick |
+| Insufficient margin | minimum free margin rule; broker refusal "Insufficient funds" recorded as broker_rejected |
+| Market closed | Zerodha market hours (weekday, weekend, MCX evening); terminal "Market is closed" |
+| Broker timeout | reply lost after the broker accepted: UNKNOWN, found by tag, filled, never re-sent |
+| Broker disconnection | refused connection retried because nothing was sent; broker unreachable during reconciliation leaves the order UNKNOWN |
+| Partial fills | Zerodha order filled 4 then 10; positions follow |
+| Rejected orders | broker refusal; three in a row open the circuit breaker; reset |
+| Duplicate worker execution | two workers, one claim; a worker that does not own an order cannot execute it |
+| Database outage | webhook answers 500 and nothing is half-recorded; readiness reports unavailable |
+| Redis outage | alerts still accepted and processed (the worker polls); sign-in still throttled |
+| Application restart during execution | paper order re-queued once; Zerodha and MetaTrader orders reconciled before anything else |
+| Ambiguous broker responses | UNKNOWN until checked; "not found" only after a grace period; terminal lookup |
+| Multiple accounts receiving the same signal | three accounts, one refuses by its own limit, the others fill |
+| Kill switch activation | account, strategy, user-wide (including already-queued orders) and platform halt |
+| Daily loss limit | locks entries, never blocks closing |
+| Unauthorized access | every route refuses anonymous requests unless listed public |
+| Cross-tenant data access | API and raw SQL for every trading table; staff cannot read broker credentials |
 
-A phase is not complete until its rows are tested.
+The browser test `e2e/trading.e2e.js` (21 checks) drives the same flows through the
+dashboard with the real worker: adding accounts, pairing a terminal, linking a
+strategy, creating and testing a webhook, sending alerts, a duplicate, a risk
+rejection, the kill switch, and approving a semi-automatic order.

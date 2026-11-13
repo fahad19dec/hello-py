@@ -8,20 +8,27 @@ MetaTrader 4) with risk controls, paper trading and a full audit trail.
 
 ## Status
 
-**Phase 1 of 7 is complete.** The platform cannot receive alerts or place
-orders yet, real or simulated. Live trading is switched off and stays off until
-a compliance review is signed off (see [docs/compliance-notes.md](docs/compliance-notes.md)).
+Broker accounts, webhook connections, risk management and order placement
+work end to end. **Live trading is switched off** and stays off until a
+compliance review is signed off (see [docs/compliance-notes.md](docs/compliance-notes.md)),
+so today real orders cannot be sent; paper accounts trade in full.
 
 | Works now | Not built yet |
 |---|---|
-| Registration with email confirmation | Strategies and webhooks (Phase 2) |
-| Sign-in, sessions per device, sign-out everywhere | Paper trading and the order engine (Phase 3) |
-| Two-factor authentication with recovery codes | Zerodha, MT5 and MT4 connections (Phase 4) |
-| Password change and reset | Risk engine and kill switches (Phase 5) |
-| Roles, account suspension, admin user management | Analytics, billing, support (Phase 6) |
-| Append-only audit trail | Security audit, deployment guides (Phase 7) |
-| Tenant isolation enforced in the database | |
-| Dashboard layout with every section in place | |
+| Accounts, email confirmation, two-factor, sessions, roles, audit trail | Analytics charts and reports |
+| Broker accounts: paper, Zerodha Kite (daily login), MetaTrader 4/5 (terminal bridge) | Billing and plans |
+| Webhooks: one-time URLs, passphrase, optional signature, rotation, revocation, dry-run tester | Support tickets |
+| Signal intake with freshness checks and exactly-once storage | Zerodha instrument-master download (mappings are entered by hand) |
+| Strategies with linked accounts, sizing modes and semi-automatic approval | Zerodha stop-loss orders (attached stops are refused instead) |
+| Risk limits at global, account and strategy level; kill switches; platform halt; circuit breaker | Deployment, disaster-recovery and VPS guides |
+| Execution engine with order states, retries only when nothing was sent, reconciliation of unknown outcomes | |
+| Paper trading with slippage, fees, limit and stop orders, stop loss and take profit | |
+| Orders, positions (with broker reconciliation for MetaTrader), signal log, trade history | |
+
+Not yet tried against real brokers: the Zerodha adapter is tested against a
+simulated broker and a mocked HTTP API, and the MetaTrader Expert Advisors
+have not been compiled or run in a terminal. See the checklist in
+[docs/metatrader-bridge.md](docs/metatrader-bridge.md).
 
 ## Run it with Docker
 
@@ -64,6 +71,9 @@ cp .env.example .env          # then set SECRET_KEY and DATA_ENCRYPTION_KEYS as 
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --port 8000 --no-proxy-headers
 
+# the execution worker, in another terminal
+.venv/bin/python -m app.workers.run
+
 # dashboard, in another terminal
 cd frontend
 npm ci
@@ -76,7 +86,7 @@ the API's terminal.
 ## Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest      # 90 tests, against a real PostgreSQL
+cd backend && .venv/bin/python -m pytest      # 167 tests, against a real PostgreSQL
 cd frontend && npx eslint . && npm run typecheck && npm run build
 ```
 
@@ -88,7 +98,8 @@ Details, the browser test and the test plan for later phases are in
 ```
 backend/     FastAPI service, migrations, tests
 frontend/    Next.js dashboard
-e2e/         browser test against the running stack
+bridge/      MetaTrader 4 and 5 Expert Advisors
+e2e/         browser tests against the running stack
 infra/       database bootstrap
 scripts/     developer helpers
 docs/        architecture, schema, security, testing, compliance notes
@@ -103,9 +114,10 @@ docs/        architecture, schema, security, testing, compliance notes
 | [docs/security.md](docs/security.md) | Controls in force, the Phase 1 review, known gaps |
 | [docs/testing.md](docs/testing.md) | How to run everything, what is covered, the plan for trading tests |
 | [docs/compliance-notes.md](docs/compliance-notes.md) | Indian regulatory findings, sources and open questions |
+| [docs/metatrader-bridge.md](docs/metatrader-bridge.md) | Installing the MetaTrader 4/5 bridge, and a demo-account checklist |
+| Alert format | In the dashboard under API Documentation |
 
-Guides still to come with their phases: TradingView setup, Kite connection, MT4
-and MT5 installation, VPS setup, admin, deployment, disaster recovery.
+Guides still to come: VPS setup, admin, deployment, disaster recovery.
 
 ## Safety
 

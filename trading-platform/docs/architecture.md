@@ -63,8 +63,8 @@ protection, ambiguous-reply handling) and the two broker simulators.
 |---|---|---|
 | Dashboard | Next.js UI. Talks to the API on the same origin, so the session cookie is first-party and no CORS is needed. | **Built** (Phase 1 screens) |
 | API | Accounts, sessions, two-factor, admin, and later strategies, broker accounts, risk settings, billing. Also the gateway the MT4/MT5 bridge polls. | **Built** for identity and admin |
-| Ingest | The webhook endpoint, deployable on its own. It authenticates, validates, de-duplicates, stores the signal and answers. It never calls a broker. | Planned, Phase 2 |
-| Workers | Turn signals into per-account orders, apply risk rules, submit to brokers, reconcile. | Planned, Phases 2 to 5 |
+| Ingest | The webhook endpoint (`/api/v1/hooks/...`). It authenticates, validates, de-duplicates, stores the signal and answers. It never calls a broker. | **Built** (inside the API process; can be split out) |
+| Workers | Turn signals into per-account orders, apply risk rules, submit to brokers, reconcile. `python -m app.workers.run`. | **Built** |
 | PostgreSQL | The only source of truth. Row-level security isolates tenants. Also holds the durable work queue. | **Built** |
 | Redis | Rate limits now; later the Celery transport and live-update fan-out. Never the only copy of anything. | **Built** for rate limits |
 
@@ -72,7 +72,7 @@ protection, ambiguous-reply handling) and the two broker simulators.
 
 1. **Capital protection first.** Any doubt resolves to not sending an order.
    Live trading is off by default and behind a compliance gate (section 7).
-2. **PostgreSQL is the queue of record.** A signal is committed before the
+2. **PostgreSQL is the queue.** Instead of Celery, workers claim rows with `FOR UPDATE SKIP LOCKED` and leases; this is the durable task system. A signal is committed before the
    webhook answers. Redis only wakes workers; a sweeper re-dispatches anything
    committed but not picked up. Losing Redis loses no signal and duplicates no order.
 3. **One winner per order.** Workers claim an order with a conditional update,
@@ -293,9 +293,9 @@ regulatory approval or broker authorisation.
 | Phase | Scope | Exit criteria | Status |
 |---|---|---|---|
 | 1 | Architecture, schema, authentication, dashboard layout, tenant isolation | Auth flows and isolation tested against PostgreSQL; dashboard runs against the API; Compose stack starts | **Done** |
-| 2 | Strategies, webhook engine, signal validation, durable queue, event log, idempotency | Duplicate, stale, malformed and unauthenticated alerts all rejected by test; signals survive a Redis outage and a restart | Next |
-| 3 | Broker interface, simulated broker, paper trading, order state machine | Full lifecycle against the simulator, including partial fills, rejects, timeouts and ambiguous replies | |
-| 4 | Zerodha adapter, MT5 and MT4 bridge EAs, instrument master and mapping | Adapters pass the same lifecycle suite; EAs compile and are exercised against a demo terminal by you | |
-| 5 | Risk engine, multi-account execution, reconciliation, kill switches | Every limit has a rejecting test; duplicate-worker and crash-mid-execution tests pass | |
+| 2 | Strategies, webhook engine, signal validation, durable queue, event log, idempotency | Duplicate, stale, malformed and unauthenticated alerts all rejected by test; signals survive a Redis outage and a restart | **Done** |
+| 3 | Broker interface, simulated broker, paper trading, order state machine | Full lifecycle against the simulator, including partial fills, rejects, timeouts and ambiguous replies | **Done** |
+| 4 | Zerodha adapter, MT5 and MT4 bridge EAs, instrument mapping | Adapters pass the lifecycle suite; EAs exercised against a demo terminal by you | **Built**; instrument-master download and the EA demo checklist remain |
+| 5 | Risk engine, multi-account execution, reconciliation, kill switches | Every limit has a rejecting test; duplicate-worker and crash-mid-execution tests pass | **Done** |
 | 6 | Analytics, billing, admin dashboard, monitoring, support | Metrics traced to stored fills; expiry blocks new entries but not exits | |
 | 7 | Security audit, performance and failure testing, deployment, remaining guides, compliance review | Evidence for each production-readiness claim | |

@@ -225,7 +225,9 @@ function StrategyCard({ strategy, accounts, reload }: { strategy: Strategy; acco
                       {link.label} <PaperBadge paper={link.broker === "paper"} />
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{MODE[link.execution_mode]}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {link.broker === "paper" && link.approval_required ? "Paper · you approve each order" : MODE[link.execution_mode]}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {SIZING[link.sizing_mode]}
                     {link.sizing_value ? `: ${fmt(link.sizing_value)}` : ""}
