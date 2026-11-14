@@ -9,6 +9,7 @@ annotated-types==0.8.0
 anyio==4.16.0
     # via
     #   fastapi
+    #   httpx
     #   starlette
     #   watchfiles
 argon2-cffi==25.1.0
@@ -16,7 +17,10 @@ argon2-cffi==25.1.0
 argon2-cffi-bindings==26.1.0
     # via argon2-cffi
 certifi==2026.10.23
-    # via sentry-sdk
+    # via
+    #   httpcore
+    #   httpx
+    #   sentry-sdk
 cffi==2.1.1
     # via
     #   argon2-cffi-bindings
@@ -32,13 +36,20 @@ email-validator==2.3.0
 fastapi==0.162.5
     # via trading-platform-backend (pyproject.toml)
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httptools==0.9.0
     # via uvicorn
+httpx==0.28.1
+    # via trading-platform-backend (pyproject.toml)
 idna==3.20
     # via
     #   anyio
     #   email-validator
+    #   httpx
 mako==1.4.3
     # via alembic
 markupsafe==3.0.4

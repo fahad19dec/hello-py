@@ -96,6 +96,8 @@ services:
     build: ./backend
     command: ["python", "-m", "app.workers.run"]
     environment: *backend-env
+    healthcheck:
+      disable: true  # the image's check is for the API; the worker serves no HTTP
     depends_on:
       migrate:
         condition: service_completed_successfully
